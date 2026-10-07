@@ -1,0 +1,9 @@
+* text=auto eol=crlf
+
+# Run by bash on a Linux runner (publish-github.yml), where a CR ends every line in a syntax error.
+*.sh text eol=lf
+
+*.png binary
+*.ico binary
+*.dll binary
+*.exe binary

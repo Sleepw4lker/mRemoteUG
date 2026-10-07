@@ -1,0 +1,29 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="Release Installer" />
+  </Configurations>
+  <Folder Name="/Installer/">
+    <Project Path="src/mRemoteUG.Installer.CustomActions/mRemoteUG.Installer.CustomActions.csproj">
+      <BuildType Solution="Release Installer|*" Project="Release" />
+      <Platform Project="x64" />
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="src/mRemoteUG.Installer/mRemoteUG.Installer.wixproj">
+      <BuildDependency Project="src/mRemoteUG.Installer.CustomActions/mRemoteUG.Installer.CustomActions.csproj" />
+      <BuildType Solution="Release Installer|*" Project="Release" />
+      <Platform Project="x64" />
+      <Build Solution="Release Installer|*" />
+    </Project>
+  </Folder>
+  <Project Path="src/mRemoteUG.Tests/mRemoteUG.Tests.csproj">
+    <BuildType Solution="Release Installer|*" Project="Release" />
+    <Platform Project="x64" />
+    <Build Solution="Release Installer|*" Project="false" />
+  </Project>
+  <Project Path="src/mRemoteUG/mRemoteUG.csproj">
+    <BuildType Solution="Release Installer|*" Project="Release" />
+    <Platform Project="x64" />
+  </Project>
+</Solution>

@@ -1,0 +1,18 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+	<Fragment>
+    <ComponentGroup Id="CG.ProjectInfoFiles" Directory="INSTALLDIR">
+      <Component Id="C.Changelog">
+        <File Id="ChangelogFile" Name="Changelog.txt" Source="$(var.SolutionDir)CHANGELOG.TXT" KeyPath="yes" />
+      </Component>
+      <Component Id="C.Credits">
+        <File Id="CreditsFile" Name="Credits.txt" Source="$(var.SolutionDir)CREDITS.TXT" KeyPath="yes" />
+      </Component>
+      <Component Id="C.License">
+        <File Id="LicenseFile" Name="License.txt" Source="$(var.SolutionDir)COPYING.TXT" KeyPath="yes" />
+      </Component>
+      <Component Id="C.Readme">
+        <File Id="ReadmeFile" Name="Readme.txt" Source="$(var.SolutionDir)README.TXT" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+	</Fragment>
+</Wix>

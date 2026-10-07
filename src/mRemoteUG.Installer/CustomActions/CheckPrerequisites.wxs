@@ -1,0 +1,6 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <?include $(sys.CURRENTDIR)Includes\Config.wxi?>
+  <Fragment>
+    <CustomAction Id="CheckIfDotNetDesktopRuntimeInstalled" Return="check" Execute="immediate" DllEntry="IsDotNetDesktopRuntimeInstalled" BinaryRef="mRemoteUG.Installer.CustomActions.CA.dll" />
+  </Fragment>
+</Wix>

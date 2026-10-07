@@ -1,0 +1,113 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>mRemoteUG</RootNamespace>
+    <AssemblyName>mRemoteUG</AssemblyName>
+    <StartupObject>mRemoteUG.App.ProgramRoot</StartupObject>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
+
+    <!-- Generated from Resources\icon-manifest.json like the rest of the artwork, not drawn
+         by hand. Form.Icon is still left unset: measured, WinForms supplies the same mark as
+         a 32x32 default, so the window, the taskbar and the file now agree without anything
+         being assigned in code. -->
+    <ApplicationIcon>Resources\Icons\App_Icon.ico</ApplicationIcon>
+
+    <!-- Output paths keep their historical shape via Directory.Build.props
+         (AppendTargetFrameworkToOutputPath=false). -->
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- ProgramRoot.Main calls EnableVisualStyles/SetCompatibleTextRenderingDefault itself, so
+         the generated ApplicationConfiguration.Initialize() is bypassed and the matching
+         Application* properties would have no effect. Disabled so nothing implies otherwise;
+         DPI awareness is pinned in Properties\app.manifest. -->
+    <EnableWindowsFormsAppConfigurationGenerator>false</EnableWindowsFormsAppConfigurationGenerator>
+
+    <!-- Report the dead-code analyzers whose severities .editorconfig raises to warning.
+         Without this the IDE rules are IDE-only and a build stays silent about them. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- WFO0003 asks for DPI awareness to be configured by the ApplicationHighDpiMode property or
+         Application.SetHighDpiMode instead of app.manifest. Suppressed deliberately, because
+         neither alternative works here: the property is part of the generated
+         ApplicationConfiguration.Initialize(), which ProgramRoot.Main bypasses by calling
+         EnableVisualStyles itself, and SetHighDpiMode is a no-op once Windows has applied a
+         manifest, which it does before any managed code runs. The manifest is therefore both
+         authoritative and more reliable. Verified rather than assumed: running the application
+         with the selftest switch fails the run unless the effective Application.HighDpiMode
+         reads PerMonitorV2.
+         It has no source location, so it cannot be set from .editorconfig. -->
+    <NoWarn>$(NoWarn);1591;660;661;WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <!-- COM interop for the RDP ActiveX control.
+       These were <COMReference> items regenerated on every build by MSBuild's
+       ResolveComReference task, which does not exist in the .NET Core build of MSBuild. That
+       made `dotnet build`, and therefore `dotnet test`, impossible without Visual Studio. The
+       assemblies are now generated once and committed; see ThirdParty\Interop\README.md. -->
+  <ItemGroup>
+    <Reference Include="Interop.MSTSCLib">
+      <HintPath>..\..\ThirdParty\Interop\Interop.MSTSCLib.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="AxInterop.MSTSCLib">
+      <HintPath>..\..\ThirdParty\Interop\AxInterop.MSTSCLib.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="4.4.0" />
+  </ItemGroup>
+
+  <!-- Resource designer wiring. The .resx globs are the SDK defaults; these entries only restore
+       the generator metadata and the custom namespace, which put the generated classes in
+       mRemoteUG rather than mRemoteUG.Properties / mRemoteUG.Resources.Language. -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Language\Language.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Language.Designer.cs</LastGenOutput>
+      <CustomToolNamespace>mRemoteUG</CustomToolNamespace>
+    </EmbeddedResource>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+  <!-- Artwork and data files the built application needs. -->
+  <ItemGroup>
+    <!-- Connection icons offered in the UI. Embedded so nothing ships loose on disk.
+         PNG rather than .ico: these are tinted to the theme and drawn at a size this
+         application chooses, so Windows' own frame selection buys nothing - unlike the
+         window icons below, where it is the whole point. -->
+    <EmbeddedResource Include="Icons\*.png" LogicalName="mRemoteUG.Icons.%(Filename).png" />
+
+    <!-- Menu, toolbar and list artwork: one PNG per glyph per ladder size, generated from
+         Resources\icon-manifest.json by Tools/IconGen and read back by UI\Glyphs.cs. The logical
+         name carries the size because %(Filename) is already "Panels.16". Same glob-with-a-
+         computed-LogicalName shape as the connection icons above, which has held since it
+         replaced a folder that shipped loose. -->
+    <EmbeddedResource Include="Resources\Glyphs\*.png" LogicalName="mRemoteUG.Glyphs.%(Filename).png" />
+
+    <!-- Title-bar icons for the tool windows. Multi-frame, never tinted: Windows picks the
+         frame itself, for a caption this application does not paint. Every one of these is
+         generated; the main window and the session windows carry no icon of their own and
+         take the WinForms default. -->
+    <EmbeddedResource Include="Resources\Icons\*.ico" LogicalName="mRemoteUG.WindowIcons.%(Filename).ico" />
+
+    <!-- Copied to the output directory so ValidateXmlSchemas can read it from there. The
+         application never reads a schema at run time, and the schemas for the older file
+         formats went with the reader for them. -->
+    <Content Include="Schemas\mremoteng_confcons_v2_9.xsd">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

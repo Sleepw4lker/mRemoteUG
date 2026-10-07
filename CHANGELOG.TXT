@@ -1,0 +1,106 @@
+2.1.0 (2026-10-07):
+
+The first release of mRemoteUG: a fork of mRemoteNG 1.76.20, cut down to a lean RDP
+and SSH client and maintained by Uwe Gradenegger. Upstream mRemoteNG is unaffected and
+remains the project this is built on; credit for nearly all of the code belongs to its
+authors and to the authors of mRemote before it. See Credits.txt.
+
+The reasoning behind each change is in docs/adr/; measured platform behaviour that
+constrains the code is in docs/platform-findings.md.
+
+Coming from mRemoteNG:
+----------------------
+Connection files written by mRemoteNG cannot be opened or imported. The password
+  encryption is different, and a file below format 2.9 is refused with a dialog saying
+  so rather than opening with every password blank. Connections have to be entered
+  again.
+Settings are not carried over either. mRemoteUG keeps its own in %APPDATA%\mRemoteUG\
+  and its log, mRemoteUG.log, in %LOCALAPPDATA%\mRemoteUG\, and never reads mRemoteNG's.
+The package is a separate product, not an upgrade of mRemoteNG. It has its own
+  UpgradeCode and installs alongside an existing mRemoteNG rather than replacing it.
+
+Requirements:
+-------------
+Windows 11 (build 22000) or newer. Earlier Windows is not supported; the installer
+  refuses to install on it.
+64-bit Windows only. There is no 32-bit build.
+.NET 10 Desktop Runtime, replacing .NET Framework 4.8. The installer checks for it and
+  stops if it is missing.
+
+Removed:
+--------
+VNC, ICA, HTTP, HTTPS and IntApp protocols. Within a file this build can open, entries
+  using a removed protocol are skipped rather than failing the whole file.
+Credential vaults and the credential repository. Connections keep their own
+  credentials, as they always could.
+LAPS / AdmPwd.E integration.
+The in-app help browser, which hosted Internet Explorer. The Help menu is now About.
+The in-app update checker.
+The custom theming engine, replaced by the Windows setting (see below).
+All localizations except en-US.
+The Portable edition.
+Third-party dependencies: BouncyCastle, MagicLibrary, AdmPwd.PDSWrapper,
+  DockPanelSuite, ObjectListView, System.Management, NUnitForms and log4net. Serilog
+  is the only runtime dependency.
+Arbitrary docking of tool windows. The main window layout is fixed; side-by-side
+  panels of session tabs are unchanged.
+The installer's custom action that searched for and uninstalled NSIS-era mRemoteNG
+  installations. A fork must not uninstall the product it forked from.
+The Add/Remove Programs help link, which pointed at upstream's website.
+
+New:
+----
+Per-Monitor V2 HiDPI, including following a DPI change when the window is dragged
+  between monitors rather than only starting at the right scale.
+Light and dark following the Windows setting, with an override on the Appearance
+  page. Applied at startup; changing it asks for a restart.
+The application and the package are signed: mRemoteUG.exe, the DLLs that belong to
+  this project, the files inside the package and the .msi itself, so Windows names a
+  publisher instead of warning about an unknown one.
+mRemoteUG.exe --selftest runs the real startup path non-interactively and reports
+  PASS/FAIL per check, for verifying a build on a machine.
+mRemoteUG.exe --verbose turns on debug logging for one run without changing the saved
+  setting. This is what to run when reporting a problem.
+--largefont, --dark and --light, for testing.
+The About dialog says what this is - a fork, who maintains it, and whose work it is
+  built on - with the lineage and the third-party notices behind its expander.
+The options dialog shows its pages on tabs.
+Panel positions are remembered between runs.
+Connection icons are embedded rather than shipped as loose files.
+
+Fixed, compared with mRemoteNG 1.76.20:
+---------------------------------------
+RDP controls are now released when a tab closes. Every RDP control the process had
+  ever hosted was previously leaked, which is the likely cause of the application
+  becoming unresponsive after a while with several sessions open. Releasing one whose
+  session is still up can block, so controls are held off-screen and disposed once
+  their session has gone down.
+Automatic RDP resizing works again. .NET 10 silently ignores size assignments on a
+  hosted ActiveX control, so the control never changed size.
+An RDP session that is still logging on is no longer interrupted.
+A clean logoff is no longer recorded as an internal error.
+Task dialogs and the About window are now the Windows task dialog, fixing three layout
+  defects that overlapped controls at higher DPI or font sizes.
+Fonts follow the Windows setting instead of being fixed at Segoe UI 8.25pt.
+The options dialog and its Appearance and Export pages scale correctly; the Export
+  page previously had overlapping controls.
+The PuTTY window is positioned correctly under per-monitor DPI.
+Exceptions are logged whole. One reporting helper dropped the InnerException chain,
+  the other dropped the stack trace, and neither recorded the exception type, so a
+  wrapped failure - reflection, XML or COM - logged the wrapper and discarded the cause.
+Unhandled exceptions are written to the log before the process exits. Until now a
+  crash was the one failure the log could not tell you about.
+Messages held back during startup are logged with the time they happened rather than
+  the time they were written, which had put all of startup on one instant.
+Log volume: routine per-session detail moved from Information to Debug, so a default
+  log is readable. A default RDP open and close writes about four Information lines
+  instead of about fifteen. Everything removed is one --verbose away.
+Two conditions that were reported as Information despite being failures are now
+  Warning: PuTTY's DPI awareness being unreadable, and parked sessions that had not
+  settled by shutdown.
+A teardown stage that stops returning is reported instead of hanging silently.
+Log filter settings now apply to every log line, including from code that could not
+  use the message collector.
+
+Changes before this are mRemoteNG's and are recorded in its own repository:
+https://github.com/mRemoteNG/mRemoteNG

@@ -1,0 +1,23 @@
+<WixLocalization Culture="en-US" Language="1033" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  
+  <!-- Install Conditions -->
+  <String Id="Upgrade_NewerVersionInstalled" Overridable="yes" Value="A newer version of [ProductName] is already installed." />
+  <String Id="Install_NeedToBeAdminToInstall" Value="You need to be an administrator to install this product." />
+  <String Id="Install_NeedDotNetDesktopRuntime" Value="mRemoteUG requires the Microsoft .NET Windows Desktop Runtime [REQUIREDDOTNETVERSION] (x64) or higher. It can be downloaded from https://dotnet.microsoft.com/download/dotnet" />
+  <String Id="Install_OSVersionRequirement" Value="mRemoteUG requires Windows 11 (build 22000) or newer. Please update your operating system and try again." />
+  
+  <!-- Directories and File names -->
+  <String Id="Folders_Desktop" Value="Desktop" />
+  <String Id="File_Credits" Value="Credits" />
+  <String Id="File_License" Value="License" />
+  <String Id="File_VersionHistory" Value="Version History" />
+  
+  <!-- Features and install options -->
+  <String Id="Feature_Complete" Value="Complete" />
+  <String Id="Feature_DesktopShortcut" Value="Desktop Shortcut" />
+  <String Id="Feature_StartMenuShortcut" Value="Start menu shortcut" />
+  
+  <!-- GUI Page Text -->
+  <String Id="FinishPage_LaunchMremoteNow" Overridable="yes" Value="Launch mRemoteUG Now" />
+  
+</WixLocalization>

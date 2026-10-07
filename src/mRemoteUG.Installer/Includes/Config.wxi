@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include>
+  <?define ProductName = "mRemoteUG" ?>
+  <?define Company = "Uwe Gradenegger" ?>
+  <!-- Deliberately not upstream mRemoteNG's UpgradeCode, dd678a54-ca75-4791-8dfe-d818095684f8.
+       Sharing it would make this package a major upgrade of mRemoteNG and silently uninstall
+       it. mRemoteUG is a separate product and installs alongside. -->
+  <?define UpgradeCode = "4f1a5791-a4ad-4ac6-b369-c625c25bb69a" ?>
+  <?define ProductCode = "*" ?>
+  <?define ProductVersion = "!(bind.FileVersion.MainExeFile)" ?>
+  <?define MajorVersion = "!(bind.property.ProductVersion.Major)" ?>
+  <?define MinorVersion = "!(bind.property.ProductVersion.Minor)" ?>
+  <?define BuildVersion = "!(bind.property.ProductVersion.Build)" ?>
+  <?define RevisionVersion = "!(bind.property.ProductVersion.Revision)" ?>
+  <?define ProductLanguage = 1033 ?>
+  <?define ExeProcessName = "$(var.ProductName).exe" ?>
+  
+  <!-- mRemoteUG targets net10.0-windows and ships framework-dependent, so the machine needs the
+       .NET Windows Desktop Runtime. Detection is done by a custom action rather than a registry
+       search: see DesktopRuntimeChecker for why. -->
+  <?define RequiredDotNetMajorVersion = "10" ?>
+  <?define RequiredDotNetDisplayVersion = "10.0" ?>
+  <?define IGNOREPREREQUISITES = 0 ?>
+  
+  <?define ProductNameWithPlatform = "$(var.ProductName)" ?>
+  <?define Win64 = "yes" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+</Include>

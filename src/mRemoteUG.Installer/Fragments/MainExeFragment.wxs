@@ -1,0 +1,8 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <?include $(sys.CURRENTDIR)Includes\Config.wxi?>
+	<Fragment>
+    <Component Id="C.MainExe" Directory="INSTALLDIR">
+      <File Id="MainExeFile" Source="$(var.SolutionDir)src\mRemoteUG\bin\$(var.Configuration)\mRemoteUG.exe" />
+    </Component>
+	</Fragment>
+</Wix>

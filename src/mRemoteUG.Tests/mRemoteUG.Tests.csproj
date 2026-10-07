@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>mRemoteUG.Tests</RootNamespace>
+    <AssemblyName>mRemoteUG.Tests</AssemblyName>
+
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+
+  <PropertyGroup>
+    <!-- Several fixtures construct real WinForms controls. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsFormsAppConfigurationGenerator>false</EnableWindowsFormsAppConfigurationGenerator>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="4.4.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="5.1.0" />
+    <PackageReference Include="NSubstitute" Version="6.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\mRemoteUG\mRemoteUG.csproj" />
+  </ItemGroup>
+
+  <!-- ProtocolBaseHostedControlSizingTests hosts a real RDP ActiveX control: only an AxHost
+       reproduces .NET 10 ignoring explicit bounds assignments. -->
+  <ItemGroup>
+    <Reference Include="Interop.MSTSCLib">
+      <HintPath>..\..\ThirdParty\Interop\Interop.MSTSCLib.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="AxInterop.MSTSCLib">
+      <HintPath>..\..\ThirdParty\Interop\AxInterop.MSTSCLib.dll</HintPath>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

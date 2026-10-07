@@ -1,0 +1,9 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+	<Fragment>
+      <Component Id="C.RegistryEntries" Directory="INSTALLDIR">
+        <RegistryKey Root="HKLM" Key="Software\mRemoteUG">
+          <RegistryValue Type="string" Name="InstallDir" Value="[INSTALLDIR]" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+    </Fragment>
+</Wix>

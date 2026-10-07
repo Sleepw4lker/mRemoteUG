@@ -1,0 +1,50 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{csproj,wixproj,props,targets,config,wxs,wxi,wxl,resx,xml,xsd}]
+indent_style = space
+indent_size = 2
+
+[*.cs]
+indent_style = space
+indent_size = 4
+
+# Note: WFO0003 (DPI settings in app.manifest) cannot be configured here. It is reported by the
+# compiler without a source location, and EditorConfig severities only reach diagnostics that
+# have one, so it is suppressed via NoWarn in mRemoteUG.csproj instead.
+
+# Dead code, surfaced at build time. Several features have been removed from this fork over
+# time, and each round left wiring behind that the compiler could not see. These two catch the
+# part of that residue a compiler can reach on its own; they are warnings rather than
+# suggestions so a build is where it gets noticed, not an IDE someone may not be running.
+# They need EnforceCodeStyleInBuild, which mRemoteUG.csproj sets.
+#
+# IDE0005 (unnecessary using directive) is deliberately not here. It is only reported on build
+# when a documentation file is generated, and the WiX HarvestPath sweeps bin\<Configuration>\
+# wholesale, so turning that on ships mRemoteUG.xml inside the MSI. Redundant usings are worth
+# less than that, and the ReSharper pass below reports them anyway.
+#
+# These see private members only. Nothing here catches an unused public type or method, which
+# is where most of this codebase's dead code has historically been, so a periodic external
+# pass is still the real safety net:
+#
+#   dotnet tool install -g JetBrains.ReSharper.GlobalTools
+#   jb inspectcode mRemoteUG.slnx -o=inspect.xml -f=Xml --severity=SUGGESTION
+#
+# and read UnusedType.Global, UnusedMember.Global and ClassNeverInstantiated.Global from it.
+# Treat that output as a list of candidates, not a work order: enum members carrying
+# [Description]/[LocalizedDescription] are property-grid and connection-file surface, methods
+# carrying [Command] are invoked by PropertyGridCommandSite through reflection, and the
+# ConDefault*/InhDefault* settings are reached by name construction in Startup.
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0052.severity = warning
+
+
+[*.ps1]
+indent_style = space
+indent_size = 4

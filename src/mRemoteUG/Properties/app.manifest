@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  NOTE: the Windows side-by-side manifest parser is far stricter than an XML parser. Do not put
+  angle brackets inside comments in this file: markup characters in comment text make it reject
+  the whole manifest with "Invalid Xml syntax", and the application then fails to start at all
+  with "the side-by-side configuration is incorrect".
+-->
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="1.0.0.0" name="mRemoteUG.app" />
+
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <!--
+    Only Windows 10 and 11 are declared, and raising the baseline to Windows 11 does not
+    change this element: the GUID below is the shared Windows 10 and Windows 11 identifier.
+    There is no separate Windows 11 GUID, so do not go looking for one to add.
+
+    The Windows 7, 8 and 8.1 entries that used to be here were dropped as already untrue.
+    Listing them made it look as though the per-monitor APIs used here needed version guards.
+    They do not.
+  -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 and Windows 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+    </application>
+  </compatibility>
+
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <!--
+        Per-Monitor V2. This replaces the deliberate dpiAware=false that the .NET 10 migration
+        pinned here; that note said changing it was a separate decision, and this is it.
+
+        One element, one value, because the baseline is Windows 11: it always reads the
+        dpiAwareness element and always honours PerMonitorV2, so the list can only ever select
+        its first entry.
+
+        Two fallbacks used to sit here and went with the baseline. A trailing PerMonitor value
+        served a Windows 10 1607 machine, which read the element but did not know PerMonitorV2 -
+        that value arrived in 1703. The older dpiAware element served anything that did not read
+        dpiAwareness at all.
+
+        Windows applies this before any managed code runs, which is why it is set here and not
+        through Application.SetHighDpiMode, which is a no-op once the process DPI context exists.
+        Verified rather than assumed: the selftest switch fails the run if the effective
+        Application.HighDpiMode is not PerMonitorV2.
+      -->
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
+
+  <!--
+    Common Controls v6. The .NET WinForms SDK ships a default manifest containing this, but
+    naming an ApplicationManifest replaces that manifest wholesale. Without the dependency,
+    Application.EnableVisualStyles has nothing to activate and controls fall back to the
+    comctl32 v5 window classes, which among other things silently reject EM_SETCUEBANNER.
+  -->
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+          type="win32"
+          name="Microsoft.Windows.Common-Controls"
+          version="6.0.0.0"
+          processorArchitecture="*"
+          publicKeyToken="6595b64144ccf1df"
+          language="*" />
+    </dependentAssembly>
+  </dependency>
+</assembly>

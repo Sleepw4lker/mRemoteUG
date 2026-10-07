@@ -1,0 +1,197 @@
+<Project>
+
+  <PropertyGroup>
+    <!--
+      Keep build output at bin\<Configuration>\ with no target-framework subfolder. The WiX
+      HarvestPath, MainExeFragment.wxs, the release scripts and two tests all resolve that exact
+      layout; letting the SDK insert net10.0-windows\ would break every one of them.
+    -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!--
+      The RDP ActiveX control is loaded in-process, so host bitness has to match. x64 only.
+    -->
+    <Platforms>x64</Platforms>
+
+    <!--
+      The version is not written down anywhere in the tree. It is derived from the git tags by
+      ComputeVersionFromGit below, which is the whole of ADR-0030: a `v<major>.<minor>.<patch>`
+      tag is the only thing that declares a release, and every other build is a rolling build
+      that numbers itself. These two are the seed used until the first tag exists.
+    -->
+    <VersionSeedMajor>2</VersionSeedMajor>
+    <VersionSeedMinor>1</VersionSeedMinor>
+
+    <!--
+      The fourth field. CI passes the run number; a local build leaves it 0, which is what
+      "this binary did not come from CI" looks like.
+    -->
+    <BuildNumber Condition="'$(BuildNumber)' == ''">0</BuildNumber>
+
+    <!--
+      Stated rather than left to the default, because a wildcard version (AssemblyInfo.cs used
+      1.76.20.* until 2.1.0) is a hard error under it and the reason the versions stopped being
+      hand-written in the first place.
+    -->
+    <Deterministic>true</Deterministic>
+
+    <!--
+      The SDK ships SourceLink in the box and appends SourceRevisionId to whatever
+      InformationalVersion it is given, which produced
+      2.1.0.0+g64fe361.dirty.64fe36173c9924b6665ae0bd088b7ea92d0709cf - the commit twice, once
+      abbreviated and once not. The version composed below is already the whole statement.
+    -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
+    <!--
+      Nullable reference types are being enabled a directory at a time. `annotations` honours every
+      `?` and nullability attribute in the source while leaving the warnings off, so a file opts in
+      to being checked by putting `#nullable enable` at its top. This setting adds zero warnings to
+      the build as it stands, which is what lets the annotations go in ahead of the checking.
+
+      `WarningsAsErrors=nullable` is the ratchet: once a file is enabled it cannot regress, and an
+      annotation added later that breaks an already-enabled file fails the build in the commit that
+      caused it rather than at the end of the migration. The build is the only thing that enforces
+      it, and it is deliberately in the build rather than in CI: the Forgejo workflow repeats the
+      same `dotnet build` on every push, but the rule has to hold locally too. See ADR-0022.
+    -->
+    <Nullable>annotations</Nullable>
+    <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
+  </PropertyGroup>
+
+
+  <!--
+    Assembly attributes. Everything except the version is declared by hand in
+    Properties\AssemblyInfo.cs in the three projects that have one, and has to stay there:
+    AssemblyCompany and AssemblyProduct shape the user.config directory layout, ComVisible and
+    Guid are a COM contract, and InternalsVisibleTo and SupportedOSPlatform are load-bearing for
+    the tests and for CA1416 respectively. Letting the SDK emit those as well is the CS0579
+    duplicate-attribute error that used to be avoided by turning generation off wholesale - which
+    threw out the version attributes along with them, and is the reason the version had to be
+    maintained by hand at all.
+
+    So generation is on, narrowed to exactly the three attributes ComputeVersionFromGit computes.
+    A project with no hand-written AssemblyInfo.cs (Tools\IconGen) is left on the SDK defaults.
+  -->
+  <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)\Properties\AssemblyInfo.cs')">
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+    <GenerateAssemblyVersionAttribute>true</GenerateAssemblyVersionAttribute>
+    <GenerateAssemblyFileVersionAttribute>true</GenerateAssemblyFileVersionAttribute>
+    <GenerateAssemblyInformationalVersionAttribute>true</GenerateAssemblyInformationalVersionAttribute>
+
+    <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
+    <GenerateAssemblyDescriptionAttribute>false</GenerateAssemblyDescriptionAttribute>
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+    <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+    <GenerateAssemblyCopyrightAttribute>false</GenerateAssemblyCopyrightAttribute>
+    <GenerateAssemblyTrademarkAttribute>false</GenerateAssemblyTrademarkAttribute>
+    <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+    <GenerateNeutralResourcesLanguageAttribute>false</GenerateNeutralResourcesLanguageAttribute>
+  </PropertyGroup>
+
+  <!--
+    The version, derived from the git tags.
+
+    `git describe` is asked one question and gives four answers at once: the newest reachable
+    v<major>.<minor>.<patch> tag, how many commits have landed since it, the commit itself, and
+    whether the tree is dirty. Everything below is arithmetic on that one string.
+
+      v2.1.0-0-g1a2b3c4d          HEAD is the tag       -> 2.1.0.<build>
+      v2.1.0-5-g1a2b3c4d          five commits past it  -> 2.1.1.<build>
+      v2.1.0-5-g1a2b3c4d.dirty    ...with local edits   -> 2.1.1.<build>+g1a2b3c4d.dirty
+      1a2b3c4d                    no tag reachable      -> 2.1.0.<build>   (the seed)
+
+    Reading the patch as "the tag's patch, plus one unless HEAD is the tag" is what makes a
+    rolling build claim a version that has not been released yet rather than impersonating the
+    last release. See ADR-0030 for why the MSI needs AllowSameVersionUpgrades as a result.
+
+    Three things are deliberate:
+
+    - AssemblyVersion holds its fourth field at 0. Measured, not assumed: the roaming
+      user.config path is keyed on AssemblyVersion and on nothing else, so a build number in
+      that field would move every user's settings on every single build. FileVersion carries
+      the build number instead, and the MSI binds its ProductVersion off that.
+
+    - The commit goes in the informational version, after a '+', where GeneralAppInfo splits
+      it: the About dialog shows what comes before, the log keeps the whole string. On a
+      machine this one cannot reach, that hash is the only way to tell which build is running.
+
+    - It fails soft. A source tree with no git, or no repository, still builds - at the seed
+      version, with a warning. The alternative is that the tarball nobody tested cannot be
+      compiled at all.
+
+    VersionDescribeOverride exists so the arithmetic can be exercised without manufacturing
+    tags, which the repository's own git guard refuses to let anyone do by hand.
+  -->
+  <Target Name="ComputeVersionFromGit"
+          BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo;Build"
+          Condition="'$(GitVersioning)' != 'false'">
+
+    <!--
+      2>NUL, not just StandardErrorImportance="low": ConsoleToMSBuild merges stdout and stderr
+      into one ConsoleOutput string in emission order. Measured on the Forgejo runner - it has
+      some GIT_TRACE* variable set in its own environment (not this workflow), so git writes
+      "trace: ..." and "performance: ..." lines to stderr for every invocation, and those landed
+      inside _GitDescribe ahead of the real answer and broke the version regex. git's actual
+      describe answer is always stdout; discarding stderr here is what keeps that true regardless
+      of what the runner's environment happens to have set.
+    -->
+    <Exec Condition="'$(VersionDescribeOverride)' == ''"
+          Command="git describe --tags --long --always --dirty=.dirty --match &quot;v[0-9]*.[0-9]*.[0-9]*&quot; 2&gt;NUL"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          IgnoreExitCode="true"
+          ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitDescribe" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitExit" />
+    </Exec>
+
+    <PropertyGroup>
+      <_GitDescribe Condition="'$(_GitDescribe)' == ''"></_GitDescribe>
+      <_Described>$(_GitDescribe.Trim())</_Described>
+      <_Described Condition="'$(_GitExit)' != '0'"></_Described>
+      <_Described Condition="'$(VersionDescribeOverride)' != ''">$(VersionDescribeOverride)</_Described>
+
+      <!-- v<major>.<minor>.<patch>-<commits since>-g<commit>[.dirty] -->
+      <_TagPattern>^v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9a-f]+)(\.dirty)?$</_TagPattern>
+      <_HasTag>$([System.Text.RegularExpressions.Regex]::IsMatch($(_Described), $(_TagPattern)))</_HasTag>
+    </PropertyGroup>
+
+    <Warning Condition="'$(_Described)' == ''"
+             Text="git describe said nothing, so the version falls back to the seed $(VersionSeedMajor).$(VersionSeedMinor).0. This is a build from something that is not a git working tree, or git is not on PATH - the binary cannot be traced back to a commit." />
+
+    <PropertyGroup Condition="'$(_HasTag)' == 'true'">
+      <_Major>$([System.Text.RegularExpressions.Regex]::Replace($(_Described), $(_TagPattern), '$1'))</_Major>
+      <_Minor>$([System.Text.RegularExpressions.Regex]::Replace($(_Described), $(_TagPattern), '$2'))</_Minor>
+      <_TagPatch>$([System.Text.RegularExpressions.Regex]::Replace($(_Described), $(_TagPattern), '$3'))</_TagPatch>
+      <_CommitsSinceTag>$([System.Text.RegularExpressions.Regex]::Replace($(_Described), $(_TagPattern), '$4'))</_CommitsSinceTag>
+      <_Commit>g$([System.Text.RegularExpressions.Regex]::Replace($(_Described), $(_TagPattern), '$5'))</_Commit>
+
+      <_Patch Condition="'$(_CommitsSinceTag)' == '0'">$(_TagPatch)</_Patch>
+      <_Patch Condition="'$(_CommitsSinceTag)' != '0'">$([MSBuild]::Add($(_TagPatch), 1))</_Patch>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(_HasTag)' != 'true'">
+      <_Major>$(VersionSeedMajor)</_Major>
+      <_Minor>$(VersionSeedMinor)</_Minor>
+      <_Patch>0</_Patch>
+      <_Commit Condition="'$(_Described)' != ''">g$(_Described.Replace('.dirty', ''))</_Commit>
+      <_Commit Condition="'$(_Described)' == ''">gunknown</_Commit>
+    </PropertyGroup>
+
+    <PropertyGroup>
+      <_Dirty Condition="$(_Described.EndsWith('.dirty'))">.dirty</_Dirty>
+
+      <Version>$(_Major).$(_Minor).$(_Patch)</Version>
+      <AssemblyVersion>$(_Major).$(_Minor).$(_Patch).0</AssemblyVersion>
+      <FileVersion>$(_Major).$(_Minor).$(_Patch).$(BuildNumber)</FileVersion>
+      <InformationalVersion>$(FileVersion)+$(_Commit)$(_Dirty)</InformationalVersion>
+    </PropertyGroup>
+
+    <Message Importance="normal"
+             Text="$(MSBuildProjectName): $(InformationalVersion) (AssemblyVersion $(AssemblyVersion), describe '$(_Described)')" />
+  </Target>
+
+</Project>

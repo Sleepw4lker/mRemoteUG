@@ -1,0 +1,151 @@
+{
+  // The icon vocabulary of this application. Nothing is artwork unless it is in here.
+  // Tools/IconGen turns every row into PNGs (and .ico for window icons) plus Resources.g.cs.
+  //
+  //   tint "mask"  ships colourless - white RGB, shape in alpha - and is tinted at load
+  //   tint "fixed" carries meaning in its colour and is never tinted
+  //   note         why this mapping, where it is not obvious. Kept next to the choice.
+
+  // A 16px logical glyph at 100/125/150/175/200/250/300/400% DPI. A request snaps up.
+  "ladder": [16, 20, 24, 28, 32, 40, 48, 64],
+
+  // Windows picks one of these itself for the title bar, Alt-Tab and the taskbar.
+  "windowIconFrames": [16, 20, 24, 32, 48, 64, 256],
+
+  "glyphs": [
+    { "name": "Arrow_Down",            "fluent": "ArrowDown",           "style": "Regular", "tint": "mask" },
+    { "name": "Arrow_Up",              "fluent": "ArrowUp",             "style": "Regular", "tint": "mask" },
+    { "name": "Chat",                  "fluent": "Comment",             "style": "Regular", "tint": "mask" },
+    { "name": "Connection_Add",        "fluent": "Add",       "style": "Regular", "tint": "mask",
+      "note": "A bare plus, not a plug: monitor_go already draws PlugConnected, and two menu items with the same mark is worse than a generic one." },
+    { "name": "Copy",                  "fluent": "Copy",                "style": "Regular", "tint": "mask" },
+    { "name": "Delete",                "fluent": "Delete",              "style": "Regular", "tint": "mask" },
+    { "name": "Folder",                "fluent": "Folder",              "style": "Regular", "tint": "mask" },
+    { "name": "Folder_Add",            "fluent": "FolderAdd",           "style": "Regular", "tint": "mask" },
+    { "name": "Inheritance",           "fluent": "Link",                "style": "Regular", "tint": "mask" },
+    { "name": "Inheritance_Default",   "fluent": "Link",                "style": "Filled",  "tint": "mask",
+      "note": "The _Default half of the pair is the filled weight, which is what Fluent uses for a set state." },
+    { "name": "JumpTo",                "fluent": "ArrowRight",          "style": "Regular", "tint": "mask" },
+    { "name": "Keyboard",              "fluent": "Keyboard",            "style": "Regular", "tint": "mask" },
+    { "name": "Options",               "fluent": "Options",             "style": "Regular", "tint": "mask" },
+    { "name": "Panel_Add",             "fluent": "PanelLeftAdd",        "style": "Regular", "tint": "mask" },
+    { "name": "Panels",                "fluent": "LayoutRowTwo",        "style": "Regular", "tint": "mask" },
+    { "name": "Properties",            "fluent": "DocumentBulletList",  "style": "Regular", "tint": "mask" },
+    { "name": "Properties_Default",    "fluent": "DocumentBulletList",  "style": "Filled",  "tint": "mask",
+      "note": "Pairs with Properties the way Inheritance_Default pairs with Inheritance." },
+    { "name": "Quit",                  "fluent": "ArrowExit",           "style": "Regular", "tint": "mask" },
+    { "name": "Refresh",               "fluent": "ArrowClockwise",      "style": "Regular", "tint": "mask" },
+    { "name": "SSHTransfer",           "fluent": "ArrowSwap",           "style": "Regular", "tint": "mask" },
+    { "name": "Search",                "fluent": "Search",              "style": "Regular", "tint": "mask" },
+    { "name": "SmartSize",             "fluent": "ArrowMaximize",       "style": "Regular", "tint": "mask" },
+    { "name": "View",                  "fluent": "Eye",                 "style": "Regular", "tint": "mask" },
+    { "name": "application_side_tree", "fluent": "PanelLeft",           "style": "Regular", "tint": "mask" },
+    { "name": "arrow_out",             "fluent": "FullScreenMaximize",  "style": "Regular", "tint": "mask" },
+    { "name": "brick",                 "fluent": "Bug",                 "style": "Regular", "tint": "mask",
+      "note": "The lowest notification class. The Silk brick meant nothing in particular; a bug does." },
+    { "name": "cog",                   "fluent": "Settings",            "style": "Regular", "tint": "mask" },
+    { "name": "key_delete",            "fluent": "Key",            "style": "Regular", "tint": "mask",
+      "note": "KeyReset is the exact mark but starts at 20; the delete is carried by the menu text." },
+    { "name": "monitor_delete",        "fluent": "PlugDisconnected",    "style": "Regular", "tint": "mask" },
+    { "name": "monitor_go",            "fluent": "PlugConnected",       "style": "Regular", "tint": "mask" },
+    { "name": "page_copy",             "fluent": "DocumentCopy",        "style": "Regular", "tint": "mask" },
+
+    { "name": "Categorized",           "fluent": "TextBulletListSquare","style": "Regular", "tint": "mask",
+      "note": "The property grid sort toggle. Replaces a framework bitmap, not a Silk one - see ConfigWindow.StyleFrameworkSortButtons." },
+    { "name": "Unsorted",              "fluent": "List",                "style": "Regular", "tint": "mask",
+      "note": "The property grid NoSort button, which WinForms ships with no text, no tooltip and the same bitmap as Alphabetical." },
+    { "name": "Collapse",              "fluent": "ChevronUp",           "style": "Regular", "tint": "mask" },
+    { "name": "Expand",                "fluent": "ChevronDown",         "style": "Regular", "tint": "mask" },
+    { "name": "ExternalApps",          "fluent": "Apps",                "style": "Regular", "tint": "mask",
+      "note": "The tab context menu. Was base64 inside ConnectionWindow.resx rather than a file, which is why it is missing from every count of the artwork." },
+    { "name": "Connections_Load",      "fluent": "FolderOpen",          "style": "Regular", "tint": "mask" },
+    { "name": "Connections_New",       "fluent": "DocumentAdd",         "style": "Regular", "tint": "mask" },
+    { "name": "Connections_Save",      "fluent": "Save",                "style": "Regular", "tint": "mask" },
+    { "name": "Connections_SaveAs",    "fluent": "Save",            "style": "Filled", "tint": "mask",
+      "note": "Save in the filled weight. SaveEdit and SaveCopy both start at 20, and 16 is the size this is drawn at." },
+    { "name": "ErrorsAndInfos",        "fluent": "Alert",               "style": "Regular", "tint": "mask" },
+    { "name": "Lock",                  "fluent": "LockClosed",          "style": "Regular", "tint": "mask" },
+    { "name": "Pause",                 "fluent": "Pause",               "style": "Regular", "tint": "mask" },
+    { "name": "Play",                  "fluent": "Play",                "style": "Regular", "tint": "mask" },
+    { "name": "Play_Quick",            "fluent": "FastForward",         "style": "Regular", "tint": "mask" },
+    { "name": "PuttyConfig",           "fluent": "WindowWrench",        "style": "Regular", "tint": "mask" },
+    { "name": "PuttySessions",         "fluent": "Code",                "style": "Regular", "tint": "mask" },
+    { "name": "RDP",                   "fluent": "Desktop",             "style": "Regular", "tint": "mask" },
+    { "name": "Rename",                "fluent": "Rename",              "style": "Regular", "tint": "mask" },
+    { "name": "Root",                  "fluent": "Home",                "style": "Regular", "tint": "mask" },
+    { "name": "Sort_AZ",               "fluent": "TextSortAscending",   "style": "Regular", "tint": "mask" },
+    { "name": "Sort_ZA",               "fluent": "TextSortDescending",  "style": "Regular", "tint": "mask" },
+    { "name": "About",                 "fluent": "Info",                "style": "Regular", "tint": "mask",
+      "note": "The About menu item. Named for what it opens: the application ships no brand mark to put here." },
+
+    // Semantic colour. These must NOT follow the theme - an error tinted to the foreground is
+    // indistinguishable from a warning. Checked against light and dark Control and Window.
+    { "name": "Error",                 "fluent": "ErrorCircle",       "style": "Filled", "tint": "fixed", "color": "#C42B1C" },
+    { "name": "ErrorSmall",            "fluent": "ErrorCircle",       "style": "Filled", "tint": "fixed", "color": "#C42B1C" },
+    { "name": "Warning",               "fluent": "Warning",           "style": "Filled", "tint": "fixed", "color": "#FFB900" },
+    { "name": "WarningSmall",          "fluent": "Warning",           "style": "Filled", "tint": "fixed", "color": "#FFB900" },
+    { "name": "Information",           "fluent": "Info",              "style": "Filled", "tint": "fixed", "color": "#0078D4" },
+    { "name": "InformationSmall",      "fluent": "Info",              "style": "Filled", "tint": "fixed", "color": "#0078D4" },
+    { "name": "ConnectedOverlay",      "fluent": "PresenceAvailable", "style": "Filled", "tint": "fixed", "color": "#107C10",
+      "badge": true,
+      "note": "Composited onto a connected node icon by StatusImageList.Overlay, so it is generated inset into the corner rather than full-bleed." },
+    { "name": "HostStatus_On",         "fluent": "PresenceAvailable", "style": "Filled", "tint": "fixed", "color": "#107C10" },
+    { "name": "HostStatus_Off",        "fluent": "PresenceOffline",   "style": "Regular", "tint": "fixed", "color": "#8A8886" },
+    { "name": "HostStatus_Check",      "fluent": "PresenceAway",      "style": "Filled", "tint": "fixed", "color": "#F7630C" }
+  ],
+
+  // Never tinted: Windows draws these on a title bar this application does not control, so they
+  // carry the accent blue, which is legible on both a light and a dark caption.
+  "windowIcons": [
+    { "name": "App_Icon",                "fluent": "SquareMultiple", "style": "Regular", "tint": "fixed", "color": "#0078D4",
+      "note": "The executable icon. SquareMultiple is the mark WinForms itself draws on a Form that sets no Icon, which is what the window and the taskbar were already showing - this puts the same mark on the file, the shortcuts and the Programs and Features entry so they stop disagreeing. Accent blue rather than a mask: an application icon is drawn on a light Explorer background as often as on a dark taskbar." },
+    { "name": "Root_Icon",               "fluent": "Home",         "style": "Filled", "tint": "fixed", "color": "#0078D4" },
+    { "name": "Info_Icon",               "fluent": "Info",         "style": "Filled", "tint": "fixed", "color": "#0078D4" },
+    { "name": "Config_Icon",             "fluent": "Settings",     "style": "Filled", "tint": "fixed", "color": "#0078D4" },
+    { "name": "Connections_SaveAs_Icon", "fluent": "Save",         "style": "Filled", "tint": "fixed", "color": "#0078D4" },
+    { "name": "Panels_Icon",             "fluent": "LayoutRowTwo", "style": "Filled", "tint": "fixed", "color": "#0078D4" }
+  ],
+
+  // The set offered by the icon picker. Legacy names are healed on read, so a connection saved by
+  // an older build keeps an icon without its file being rewritten.
+  "connectionIcons": [
+    { "name": "Remote Desktop",    "fluent": "Desktop",        "style": "Regular", "tint": "mask",
+      "legacy": ["Terminal Server", "Workstation"] },
+    { "name": "Windows",           "fluent": "Window",         "style": "Regular", "tint": "mask",
+      "note": "A generic window, not a logo: Fluent carries no Microsoft brand marks, and none may be sourced elsewhere to fill the gap." },
+    { "name": "Desktop",           "fluent": "DesktopKeyboard",   "style": "Regular", "tint": "mask" },
+    { "name": "Laptop",            "fluent": "Laptop",         "style": "Regular", "tint": "mask" },
+    { "name": "Server",            "fluent": "Server",         "style": "Regular", "tint": "mask",
+      "legacy": ["Build Server", "Test Server", "Finance", "Log"] },
+    { "name": "Linux",             "fluent": "Server",         "style": "Filled",  "tint": "mask",
+      "note": "Fluent carries no distribution marks, so a Linux host takes the server mark in the filled weight." },
+    { "name": "Database",          "fluent": "Database",       "style": "Regular", "tint": "mask" },
+    { "name": "Domain Controller", "fluent": "Organization",   "style": "Regular", "tint": "mask" },
+    { "name": "File Server",       "fluent": "FolderOpen",     "style": "Regular", "tint": "mask" },
+    { "name": "Mail Server",       "fluent": "Mail",           "style": "Regular", "tint": "mask" },
+    { "name": "Web Server",        "fluent": "Globe",          "style": "Regular", "tint": "mask",
+      "legacy": ["SharePoint"] },
+    { "name": "Firewall",          "fluent": "ShieldKeyhole",  "style": "Regular", "tint": "mask",
+      "legacy": ["Anti Virus"] },
+    { "name": "Router",            "fluent": "Router",         "style": "Regular", "tint": "mask" },
+    { "name": "Switch",            "fluent": "NetworkAdapter", "style": "Regular", "tint": "mask",
+      "note": "NetworkAdapter ships at 16 only, so larger sizes are scaled up from it and read heavier than their neighbours. Nothing in Fluent is closer to a network switch." },
+    { "name": "WiFi",              "fluent": "Wifi1",          "style": "Regular", "tint": "mask" },
+    { "name": "SSH",               "fluent": "Code",           "style": "Regular", "tint": "mask",
+      "legacy": ["Telnet"] },
+    { "name": "PuTTY",             "fluent": "WindowDevTools",  "style": "Regular", "tint": "mask",
+      "note": "WindowConsole is the closer mark but ships at 20 only, so every other size would be scaled from it." },
+    { "name": "Virtual Machine",   "fluent": "Cube",           "style": "Regular", "tint": "mask",
+      "legacy": ["ESX"] },
+    { "name": "Container",         "fluent": "Box",            "style": "Regular", "tint": "mask" },
+    { "name": "Cloud",             "fluent": "Cloud",          "style": "Regular", "tint": "mask" },
+    { "name": "Storage",           "fluent": "HardDrive",      "style": "Regular", "tint": "mask",
+      "legacy": ["Backup"] },
+    { "name": "Printer",           "fluent": "Print",          "style": "Regular", "tint": "mask",
+      "legacy": ["Fax"] },
+    { "name": "Phone",             "fluent": "Phone",          "style": "Regular", "tint": "mask",
+      "legacy": ["Tel"] },
+    { "name": "mRemoteUG",         "fluent": "PlugConnected",  "style": "Regular", "tint": "mask",
+      "legacy": ["mRemote"] }
+  ]
+}

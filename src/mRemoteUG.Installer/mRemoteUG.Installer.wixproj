@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputName>mRemoteUG-Installer</OutputName>
+    <OutputType>Package</OutputType>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <Cultures>en-US</Cultures>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <SuppressPdbOutput Condition=" '$(Configuration)' == 'Release' ">True</SuppressPdbOutput>
+
+    <!-- ICE61 fires because MajorUpgrade sets AllowSameVersionUpgrades, which is deliberate and
+         explained where it is set. Suppressed by name rather than with SuppressValidation, so
+         every other ICE still runs on a machine that can reach the Windows Installer service. -->
+    <SuppressIces>ICE61</SuppressIces>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <HarvestPath>$(SolutionDir)src\mRemoteUG\bin\Debug</HarvestPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <HarvestPath>$(SolutionDir)src\mRemoteUG\bin\Release</HarvestPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DefineConstants>HarvestPath=$(HarvestPath)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Heat" Version="5.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Replaces the old heat.exe PreBuildEvent: harvests the mRemoteUG build output into a component group. -->
+    <HarvestDirectory Include="$(HarvestPath)"
+                       ComponentGroupName="MandatoryComponents"
+                       DirectoryRefId="INSTALLDIR"
+                       SuppressRootDirectory="true"
+                       PreprocessorVariable="var.HarvestPath"
+                       Transforms="Filters\Harvest_Filter.xslt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Filters\Harvest_Filter.xslt" />
+    <Content Include="Includes\Config.wxi" />
+    <Content Include="Resources\License.rtf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\mRemoteUG\mRemoteUG.csproj" />
+    <ProjectReference Include="..\mRemoteUG.Installer.CustomActions\mRemoteUG.Installer.CustomActions.csproj" />
+  </ItemGroup>
+
+  <!-- An MSI nothing validated must not be silent about it.
+
+       ICE validation runs the ICE custom actions inside the Windows Installer service, which a
+       build agent without administrative rights cannot open: the build fails with WIX0217 instead
+       of reporting an ICE result, so CI passes -p:SuppressValidation=true. That leaves "the MSI
+       built" looking exactly like "the MSI was checked", which this stops.
+
+       A warning rather than a message because a CI log is thousands of lines and this belongs in
+       the summary. It cannot fail the build - nothing sets TreatWarningsAsErrors here, and the
+       WarningsAsErrors in Directory.Build.props is scoped to nullable. -->
+  <Target Name="SayWhenValidationIsSuppressed" BeforeTargets="Build"
+          Condition=" '$(SuppressValidation)' == 'true' ">
+    <Warning Text="MSI validation (ICE) is suppressed, so no ICE has checked this package. Build on a machine that can reach the Windows Installer service, without -p:SuppressValidation=true, to run it." />
+  </Target>
+
+  <!-- Convert the license file "COPYING.TXT" to "License.rtf" to be shown in the installer GUI.
+
+       BeforeBuild, not Build: a BeforeTargets="Build" hook runs after the WiX compile, so the
+       generated file was always one build behind. That went unnoticed for as long as a
+       previously generated License.rtf sat in Resources - it is gitignored, so the build only
+       fails on a clean clone, where the licence page has nothing to show. -->
+  <Target Name="ConvertLicenseToRtf" BeforeTargets="BeforeBuild">
+    <Exec Command="&quot;$(ProjectDir)Resources\Pandoc\pandoc.exe&quot; -s -t rtf -o &quot;$(ProjectDir)Resources\License.rtf&quot; &quot;$(SolutionDir)COPYING.TXT&quot;" />
+  </Target>
+
+  <!-- Name the package after the version it carries.
+
+       This used to be Tools\rename_installer_with_version.ps1, which read the version back out
+       of the built executable with a checked-in copy of Sysinternals sigcheck.exe and ran under
+       -ErrorAction SilentlyContinue throughout, so a rename that failed left an unversioned MSI
+       and said nothing. Both are gone: $(FileVersion) is already known here, it is the same
+       property that stamped the executable the MSI binds its ProductVersion off, and the Move
+       task fails the build rather than swallowing the error.
+
+       Versioned packages from earlier builds are removed first. Nothing downstream copes with
+       two MSIs in this directory - CI asserts there is exactly one - and locally they would
+       otherwise pile up one per build. -->
+  <Target Name="NameTheInstallerAfterTheVersion" AfterTargets="Build">
+    <PropertyGroup>
+      <_BuiltMsi>$(OutputPath)en-US\$(OutputName).msi</_BuiltMsi>
+      <_VersionedMsi>$(OutputPath)en-US\$(OutputName)-$(FileVersion).msi</_VersionedMsi>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_PreviouslyVersionedMsi Include="$(OutputPath)en-US\$(OutputName)-*.msi" />
+    </ItemGroup>
+
+    <Delete Files="@(_PreviouslyVersionedMsi)" />
+
+    <Error Condition="!Exists('$(_BuiltMsi)')"
+           Text="The build produced no $(_BuiltMsi) to name. Nothing downstream will find an installer." />
+
+    <Move SourceFiles="$(_BuiltMsi)" DestinationFiles="$(_VersionedMsi)" />
+    <Message Importance="high" Text="Installer: $(_VersionedMsi)" />
+  </Target>
+
+  <!-- Put the package where a person will look for it, on a local build only.
+
+       This replaced a three-layer chain for one file copy: an Exec launching Windows PowerShell
+       5.1, running Tools\postbuild_installer.ps1, whose only remaining job was to call
+       Tools\copy_release_installer.ps1, which globbed bin\Release recursively for anything whose
+       extension merely *contained* "exe" or "msi" and printed a SHA512 that nothing consumed -
+       ADR-0030 removed the release notes that used to carry one. Both scripts are gone.
+
+       An Exec could not have failed on any of it anyway. It reports the process exit code, and
+       `powershell -File` exits 0 whatever the script writes to the error stream: the
+       verify_binary_signatures.ps1 that ADR-0032 deleted threw a parameter binding error on every
+       single build, in the log, for weeks, without once failing one. A Copy task fails the build.
+
+       BuildNumber is 0 only on a local build - CI passes the run number (ADR-0030) - and this
+       directory is a local convenience, gitignored, that nothing in the pipeline reads. Gating on
+       it also removes a trap: CI signs the package *after* this target has run, so without the
+       condition the copy here would be the one unsigned MSI in the workspace. -->
+  <Target Name="CopyThePackageToRelease" AfterTargets="Build"
+          DependsOnTargets="NameTheInstallerAfterTheVersion"
+          Condition=" '$(BuildNumber)' == '0' ">
+    <Copy SourceFiles="$(_VersionedMsi)" DestinationFolder="$(SolutionDir)Release" />
+    <Message Importance="high" Text="Copied to: $(SolutionDir)Release" />
+  </Target>
+</Project>
