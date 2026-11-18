@@ -3,6 +3,11 @@
 # Run by bash on a Linux runner (publish-github.yml), where a CR ends every line in a syntax error.
 *.sh text eol=lf
 
+# PowerShell follows the organisation's conventions, which say LF (docs/conventions/powershell.md).
+*.ps1 text eol=lf
+*.psm1 text eol=lf
+*.psd1 text eol=lf
+
 *.png binary
 *.ico binary
 *.dll binary

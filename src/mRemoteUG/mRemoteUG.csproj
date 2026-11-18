@@ -27,10 +27,6 @@
          DPI awareness is pinned in Properties\app.manifest. -->
     <EnableWindowsFormsAppConfigurationGenerator>false</EnableWindowsFormsAppConfigurationGenerator>
 
-    <!-- Report the dead-code analyzers whose severities .editorconfig raises to warning.
-         Without this the IDE rules are IDE-only and a build stays silent about them. -->
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-
     <!-- WFO0003 asks for DPI awareness to be configured by the ApplicationHighDpiMode property or
          Application.SetHighDpiMode instead of app.manifest. Suppressed deliberately, because
          neither alternative works here: the property is part of the generated
@@ -41,7 +37,16 @@
          with the selftest switch fails the run unless the effective Application.HighDpiMode
          reads PerMonitorV2.
          It has no source location, so it cannot be set from .editorconfig. -->
-    <NoWarn>$(NoWarn);1591;660;661;WFO0003</NoWarn>
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+
+    <!-- The portable PDB goes inside mRemoteUG.dll rather than beside it. The stack traces
+         CrashLogger writes keep their file names and line numbers, no loose .pdb exists for the
+         installer's harvest to pick up, and the Authenticode signature covers the symbols too.
+         Neither `none` nor `portable` will do: without symbols a .NET stack trace carries no IL
+         offsets either, so a user's log could not be symbolised afterwards. ADR-0041.
+         EmbeddedSymbolsTests fails if this is switched back, and build.yml fails a package
+         that carries any .pdb. -->
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <!-- COM interop for the RDP ActiveX control.
@@ -63,7 +68,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Serilog" Version="4.4.0" />
+    <PackageReference Include="Serilog" />
   </ItemGroup>
 
   <!-- Resource designer wiring. The .resx globs are the SDK defaults; these entries only restore

@@ -1,15 +1,14 @@
-namespace mRemoteUG.Connection.Protocol.RAW
+namespace mRemoteUG.Connection.Protocol.RAW;
+
+public class RawProtocol : PuttyBase
 {
-	public class RawProtocol : PuttyBase
-	{
-		public RawProtocol()
-		{
-			PuttyProtocol = Putty_Protocol.raw;
-		}
-				
-		public enum Defaults
-		{
-			Port = 23
-		}
-	}
+    public RawProtocol()
+    {
+        PuttyProtocol = PuttyProtocolKind.raw;
+    }
+
+    public enum Defaults
+    {
+        Port = 23
+    }
 }

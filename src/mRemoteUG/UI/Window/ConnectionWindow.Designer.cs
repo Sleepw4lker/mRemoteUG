@@ -49,17 +49,31 @@ namespace mRemoteUG.UI.Window
         }
 
         /// <summary>
-        /// Takes ownership of a context menu built for this panel, so it goes when the panel does.
+        /// The menu for this panel's tab in the main window's documents strip (Rename), which
+        /// MainLayout shows when that tab is right-clicked.
         /// </summary>
         /// <remarks>
-        /// Assigning to <see cref="System.Windows.Forms.Control.ContextMenuStrip"/> does not transfer
-        /// ownership - Control.Dispose leaves the menu alone - so the panel context menu PanelAdder
-        /// builds leaked once per panel opened. The components container is the thing that is disposed
-        /// above, so the menu goes in there.
+        /// Deliberately not <see cref="System.Windows.Forms.Control.ContextMenuStrip"/>. A
+        /// right button-up on a control with no menu of its own turns into a WM_CONTEXTMENU that
+        /// WinForms passes up to the parent, so as the window's menu it opened from the session
+        /// Tab strip: on the empty space beside the Tabs, and again after the Tab menu.
+        /// </remarks>
+        [System.ComponentModel.DesignerSerializationVisibility(
+            System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        internal ContextMenuStrip PanelContextMenu { get; private set; }
+
+        /// <summary>
+        /// Takes ownership of the panel menu built for this panel, so it goes when the panel does.
+        /// </summary>
+        /// <remarks>
+        /// Holding a menu does not dispose it - Control.Dispose leaves even its own
+        /// ContextMenuStrip alone - so the panel context menu PanelAdder builds leaked once per
+        /// panel opened. The components container is the thing that is disposed above, so the
+        /// menu goes in there.
         /// </remarks>
         internal void OwnContextMenu(ContextMenuStrip menu)
         {
-            ContextMenuStrip = menu;
+            PanelContextMenu = menu;
             if (menu != null)
                 components.Add(menu);
         }
@@ -93,15 +107,17 @@ namespace mRemoteUG.UI.Window
             //
             //TabController
             //
-            TabController.Anchor = ((AnchorStyles.Top | AnchorStyles.Bottom)
-                | AnchorStyles.Left)
-                | AnchorStyles.Right;
+            // Docked, not anchored: the font-based autoscale of a DPI change scaled an anchored
+            // tab control past the window it sits in. See ConnectionWindowFontScalingTests.
+            TabController.Dock = DockStyle.Fill;
             TabController.Cursor = Cursors.Hand;
             TabController.DrawMode = TabDrawMode.OwnerDrawFixed;
-            TabController.Location = new Point(0, -1);
             TabController.Name = "TabController";
-            TabController.Size = new Size(632, 454);
-            TabController.SizeMode = TabSizeMode.Fixed;
+            // Each Tab sized by comctl32 from its own text, with the icon and close button given
+            // room through ItemPadding (#261). Both of these are window styles, so they are set here,
+            // before the handle exists: assigning either later recreates the window.
+            TabController.SizeMode = TabSizeMode.Normal;
+            TabController.ShowToolTips = true;
             TabController.TabIndex = 0;
             //
             //cmenTab

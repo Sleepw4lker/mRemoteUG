@@ -1,259 +1,308 @@
-#nullable enable
-using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Linq;
+
 using mRemoteUG.Connection;
 using mRemoteUG.Connection.Protocol;
 using mRemoteUG.Tree;
 
-namespace mRemoteUG.Container
+namespace mRemoteUG.Container;
+
+[DefaultProperty("Name")]
+public class ContainerInfo : ConnectionInfo, INotifyCollectionChanged
 {
-	[DefaultProperty("Name")]
-    public class ContainerInfo : ConnectionInfo, INotifyCollectionChanged
-	{
-	    private bool _isExpanded;
+    private bool _isExpanded;
 
-	    [Browsable(false)]
-        public List<ConnectionInfo> Children { get; } = new List<ConnectionInfo>();
+    [Browsable(false)]
+    public List<ConnectionInfo> Children { get; } = new List<ConnectionInfo>();
 
-	    [Category(""), Browsable(false), ReadOnly(false), Bindable(false), DefaultValue(""), DesignOnly(false)]
-	    public bool IsExpanded
-	    {
-	        get => _isExpanded;
-	        set => SetField(ref _isExpanded, value, "IsExpanded");
-	    }
+    [Category(""), Browsable(false), ReadOnly(false), Bindable(false), DefaultValue(""), DesignOnly(false)]
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set => SetField(ref _isExpanded, value, nameof(IsExpanded));
+    }
 
-	    [Browsable(false)]
-	    public override bool IsContainer { get { return true; } set {} }
+    [Browsable(false)]
+    public override bool IsContainer { get { return true; } set { } }
 
-	    public ContainerInfo(string uniqueId)
-			: base(uniqueId)
+    public ContainerInfo(string uniqueId)
+        : base(uniqueId)
+    {
+        SetDefaults();
+    }
+
+    public ContainerInfo()
+        : this(Guid.NewGuid().ToString())
+    {
+    }
+
+    public override TreeNodeType GetTreeNodeType()
+    {
+        return TreeNodeType.Container;
+    }
+
+    public bool HasChildren()
+    {
+        return Children.Count > 0;
+    }
+
+    public void AddChild(ConnectionInfo newChildItem)
+    {
+        AddChildAt(newChildItem, Children.Count);
+    }
+
+    public void AddChildAbove(ConnectionInfo newChildItem, ConnectionInfo reference)
+    {
+        int newChildIndex = Children.IndexOf(reference);
+        if (newChildIndex < 0)
         {
-            SetDefaults();
+            newChildIndex = Children.Count;
         }
 
-		public ContainerInfo()
-			: this(Guid.NewGuid().ToString())
-		{
-		}
+        AddChildAt(newChildItem, newChildIndex);
+    }
 
-        public override TreeNodeType GetTreeNodeType()
+    public void AddChildBelow(ConnectionInfo newChildItem, ConnectionInfo reference)
+    {
+        int newChildIndex = Children.IndexOf(reference) + 1;
+        if (newChildIndex > Children.Count || newChildIndex < 1)
         {
-            return TreeNodeType.Container;
+            newChildIndex = Children.Count;
         }
 
-        public bool HasChildren()
+        AddChildAt(newChildItem, newChildIndex);
+    }
+
+    public virtual void AddChildAt(ConnectionInfo newChildItem, int index)
+    {
+        if (Children.Contains(newChildItem))
         {
-            return Children.Count > 0;
+            return;
         }
 
-        public void AddChild(ConnectionInfo newChildItem)
+        newChildItem.Parent?.RemoveChild(newChildItem);
+        newChildItem.Parent = this;
+        Children.Insert(index, newChildItem);
+        SubscribeToChildEvents(newChildItem);
+        RaiseCollectionChangedEvent(
+            this,
+            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, newChildItem));
+    }
+
+    public void AddChildRange(IEnumerable<ConnectionInfo> newChildren)
+    {
+        foreach (ConnectionInfo child in newChildren)
         {
-            AddChildAt(newChildItem, Children.Count);
+            AddChild(child);
+        }
+    }
+
+    public virtual void RemoveChild(ConnectionInfo removalTarget)
+    {
+        if (!Children.Contains(removalTarget))
+        {
+            return;
         }
 
-        public void AddChildAbove(ConnectionInfo newChildItem, ConnectionInfo reference)
+        removalTarget.Parent = null;
+        Children.Remove(removalTarget);
+        UnsubscribeToChildEvents(removalTarget);
+        RaiseCollectionChangedEvent(
+            this,
+            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, removalTarget));
+    }
+
+    public void RemoveChildRange(IEnumerable<ConnectionInfo> removalTargets)
+    {
+        foreach (ConnectionInfo child in removalTargets)
         {
-            var newChildIndex = Children.IndexOf(reference);
-            if (newChildIndex < 0)
-                newChildIndex = Children.Count;
-            AddChildAt(newChildItem, newChildIndex);
+            RemoveChild(child);
+        }
+    }
+
+    public void SetChildPosition(ConnectionInfo child, int newIndex)
+    {
+        int originalIndex = Children.IndexOf(child);
+        if (originalIndex < 0 || originalIndex == newIndex || newIndex < 0)
+        {
+            return;
         }
 
-        public void AddChildBelow(ConnectionInfo newChildItem, ConnectionInfo reference)
+        Children.Remove(child);
+        if (newIndex > Children.Count)
         {
-            var newChildIndex = Children.IndexOf(reference) + 1;
-            if (newChildIndex > Children.Count || newChildIndex < 1)
-                newChildIndex = Children.Count;
-            AddChildAt(newChildItem, newChildIndex);
+            newIndex = Children.Count;
         }
 
-        public virtual void AddChildAt(ConnectionInfo newChildItem, int index)
+        Children.Insert(newIndex, child);
+        RaiseCollectionChangedEvent(
+            this,
+            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Move, child, newIndex, originalIndex));
+    }
+
+    public void SetChildAbove(ConnectionInfo childToPromote, ConnectionInfo reference)
+    {
+        int newIndex = GetNewChildIndexAboveReference(childToPromote, reference);
+        SetChildPosition(childToPromote, newIndex);
+    }
+
+    private int GetNewChildIndexAboveReference(ConnectionInfo childToPromote, ConnectionInfo reference)
+    {
+        int originalIndex = Children.IndexOf(childToPromote);
+        int newIndex = Children.IndexOf(reference);
+        if (originalIndex < newIndex)
         {
-            if (Children.Contains(newChildItem)) return;
-            newChildItem.Parent?.RemoveChild(newChildItem);
-            newChildItem.Parent = this;
-            Children.Insert(index, newChildItem);
-            SubscribeToChildEvents(newChildItem);
-            RaiseCollectionChangedEvent(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, newChildItem));
+            newIndex -= 1;
         }
 
-        public void AddChildRange(IEnumerable<ConnectionInfo> newChildren)
+        return newIndex < 0 ? 0 : newIndex;
+    }
+
+    public void SetChildBelow(ConnectionInfo childToPromote, ConnectionInfo reference)
+    {
+        int newIndex = GetNewChildIndexBelowReference(childToPromote, reference);
+        SetChildPosition(childToPromote, newIndex);
+    }
+
+    private int GetNewChildIndexBelowReference(ConnectionInfo childToPromote, ConnectionInfo reference)
+    {
+        int originalIndex = Children.IndexOf(childToPromote);
+        int newIndex = Children.IndexOf(reference);
+        if (originalIndex > newIndex)
         {
-            foreach (var child in newChildren)
+            newIndex += 1;
+        }
+
+        return newIndex < 0 ? 0 : newIndex;
+    }
+
+    public void PromoteChild(ConnectionInfo child)
+    {
+        int originalIndex = Children.IndexOf(child);
+        SetChildPosition(child, originalIndex - 1);
+    }
+
+    public void DemoteChild(ConnectionInfo child)
+    {
+        int originalIndex = Children.IndexOf(child);
+        SetChildPosition(child, originalIndex + 1);
+    }
+
+    public void Sort(ListSortDirection sortDirection = ListSortDirection.Ascending)
+    {
+        SortOn(connectionInfo => connectionInfo.Name, sortDirection);
+    }
+
+    public void SortOn<TProperty>(
+        Func<ConnectionInfo, TProperty> propertyToCompare,
+        ListSortDirection sortDirection = ListSortDirection.Ascending)
+        where TProperty : IComparable<TProperty>
+    {
+        var connectionComparer = new ConnectionInfoComparer<TProperty>(propertyToCompare)
+        {
+            SortDirection = sortDirection
+        };
+        Children.Sort(connectionComparer);
+        RaiseCollectionChangedEvent(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+    }
+
+    public void SortRecursive(ListSortDirection sortDirection = ListSortDirection.Ascending)
+    {
+        SortOnRecursive(connectionInfo => connectionInfo.Name, sortDirection);
+    }
+
+    public void SortOnRecursive<TProperty>(
+        Func<ConnectionInfo, TProperty> propertyToCompare,
+        ListSortDirection sortDirection = ListSortDirection.Ascending)
+        where TProperty : IComparable<TProperty>
+    {
+        foreach (ContainerInfo child in Children.OfType<ContainerInfo>())
+        {
+            child.SortOnRecursive(propertyToCompare, sortDirection);
+        }
+
+        SortOn(propertyToCompare, sortDirection);
+    }
+
+    // Deep clone, recursive
+    public override ConnectionInfo Clone()
+    {
+        var newContainer = new ContainerInfo();
+        newContainer.CopyFrom(this);
+        newContainer.OpenConnections = new ProtocolList();
+        newContainer.Inheritance = Inheritance.Clone();
+        foreach (ConnectionInfo child in Children.ToArray())
+        {
+            ConnectionInfo newChild = child.Clone();
+            newChild.RemoveParent();
+            newContainer.AddChild(newChild);
+        }
+        return newContainer;
+    }
+
+    private void SetDefaults()
+    {
+        Name = "New Folder";
+        IsExpanded = true;
+    }
+
+    public IEnumerable<ConnectionInfo> GetRecursiveChildList()
+    {
+        var childList = new List<ConnectionInfo>();
+        foreach (ConnectionInfo child in Children)
+        {
+            childList.Add(child);
+            var childContainer = child as ContainerInfo;
+            if (childContainer != null)
             {
-                AddChild(child);
+                childList.AddRange(GetRecursiveChildList(childContainer));
             }
         }
+        return childList;
+    }
 
-        public virtual void RemoveChild(ConnectionInfo removalTarget)
+    private static List<ConnectionInfo> GetRecursiveChildList(ContainerInfo container)
+    {
+        var childList = new List<ConnectionInfo>();
+        foreach (ConnectionInfo child in container.Children)
         {
-            if (!Children.Contains(removalTarget)) return;
-            removalTarget.Parent = null;
-            Children.Remove(removalTarget);
-            UnsubscribeToChildEvents(removalTarget);
-            RaiseCollectionChangedEvent(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, removalTarget));
-        }
-
-        public void RemoveChildRange(IEnumerable<ConnectionInfo> removalTargets)
-        {
-            foreach (var child in removalTargets)
+            childList.Add(child);
+            var childContainer = child as ContainerInfo;
+            if (childContainer != null)
             {
-                RemoveChild(child);
+                childList.AddRange(GetRecursiveChildList(childContainer));
             }
         }
+        return childList;
+    }
 
-        public void SetChildPosition(ConnectionInfo child, int newIndex)
+    protected virtual void SubscribeToChildEvents(ConnectionInfo child)
+    {
+        child.PropertyChanged += RaisePropertyChangedEvent;
+        var childAsContainer = child as ContainerInfo;
+        if (childAsContainer == null)
         {
-            var originalIndex = Children.IndexOf(child);
-            if (originalIndex < 0 || originalIndex == newIndex || newIndex < 0) return;
-            Children.Remove(child);
-            if (newIndex > Children.Count) newIndex = Children.Count;
-            Children.Insert(newIndex, child);
-            RaiseCollectionChangedEvent(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Move, child, newIndex, originalIndex));
+            return;
         }
 
-        public void SetChildAbove(ConnectionInfo childToPromote, ConnectionInfo reference)
+        childAsContainer.CollectionChanged += RaiseCollectionChangedEvent;
+    }
+
+    protected virtual void UnsubscribeToChildEvents(ConnectionInfo child)
+    {
+        child.PropertyChanged -= RaisePropertyChangedEvent;
+        var childAsContainer = child as ContainerInfo;
+        if (childAsContainer == null)
         {
-            var newIndex = GetNewChildIndexAboveReference(childToPromote, reference);
-            SetChildPosition(childToPromote, newIndex);
+            return;
         }
 
-        private int GetNewChildIndexAboveReference(ConnectionInfo childToPromote, ConnectionInfo reference)
-        {
-            var originalIndex = Children.IndexOf(childToPromote);
-            var newIndex = Children.IndexOf(reference);
-            if (originalIndex < newIndex)
-                newIndex -= 1;
-            return newIndex < 0 ? 0 : newIndex;
-        }
+        childAsContainer.CollectionChanged -= RaiseCollectionChangedEvent;
+    }
 
-        public void SetChildBelow(ConnectionInfo childToPromote, ConnectionInfo reference)
-        {
-            var newIndex = GetNewChildIndexBelowReference(childToPromote, reference);
-            SetChildPosition(childToPromote, newIndex);
-        }
-
-        private int GetNewChildIndexBelowReference(ConnectionInfo childToPromote, ConnectionInfo reference)
-        {
-            var originalIndex = Children.IndexOf(childToPromote);
-            var newIndex = Children.IndexOf(reference);
-            if (originalIndex > newIndex)
-                newIndex += 1;
-            return newIndex < 0 ? 0 : newIndex;
-        }
-
-        public void PromoteChild(ConnectionInfo child)
-        {
-            var originalIndex = Children.IndexOf(child);
-            SetChildPosition(child, originalIndex - 1);
-        }
-
-        public void DemoteChild(ConnectionInfo child)
-        {
-            var originalIndex = Children.IndexOf(child);
-            SetChildPosition(child, originalIndex + 1);
-        }
-
-        public void Sort(ListSortDirection sortDirection = ListSortDirection.Ascending)
-        {
-            SortOn(connectionInfo => connectionInfo.Name, sortDirection);
-        }
-
-        public void SortOn<TProperty>(Func<ConnectionInfo, TProperty> propertyToCompare, ListSortDirection sortDirection = ListSortDirection.Ascending) 
-            where TProperty : IComparable<TProperty>
-        {
-            var connectionComparer = new ConnectionInfoComparer<TProperty>(propertyToCompare)
-            {
-                SortDirection = sortDirection
-            };
-            Children.Sort(connectionComparer);
-            RaiseCollectionChangedEvent(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-        }
-
-        public void SortRecursive(ListSortDirection sortDirection = ListSortDirection.Ascending)
-        {
-            SortOnRecursive(connectionInfo => connectionInfo.Name, sortDirection);
-        }
-
-        public void SortOnRecursive<TProperty>(Func<ConnectionInfo, TProperty> propertyToCompare, ListSortDirection sortDirection = ListSortDirection.Ascending)
-            where TProperty : IComparable<TProperty>
-        {
-            foreach (var child in Children.OfType<ContainerInfo>())
-                child.SortOnRecursive(propertyToCompare, sortDirection);
-            SortOn(propertyToCompare, sortDirection);
-        }
-
-        // Deep clone, recursive
-        public override ConnectionInfo Clone()
-		{
-            var newContainer = new ContainerInfo();
-            newContainer.CopyFrom(this);
-            newContainer.OpenConnections = new ProtocolList();
-            newContainer.Inheritance = Inheritance.Clone();
-            foreach (var child in Children.ToArray())
-            {
-                var newChild = child.Clone();
-                newChild.RemoveParent();
-                newContainer.AddChild(newChild);
-            }
-            return newContainer;
-		}
-			
-		private void SetDefaults()
-		{
-		    Name = "New Folder";
-            IsExpanded = true;
-		}
-
-        public IEnumerable<ConnectionInfo> GetRecursiveChildList()
-        {
-            var childList = new List<ConnectionInfo>();
-            foreach (var child in Children)
-            {
-                childList.Add(child);
-                var childContainer = child as ContainerInfo;
-                if (childContainer != null)
-                    childList.AddRange(GetRecursiveChildList(childContainer));
-            }
-            return childList;
-        }
-
-        private IEnumerable<ConnectionInfo> GetRecursiveChildList(ContainerInfo container)
-        {
-            var childList = new List<ConnectionInfo>();
-            foreach (var child in container.Children)
-            {
-                childList.Add(child);
-                var childContainer = child as ContainerInfo;
-                if (childContainer != null)
-                    childList.AddRange(GetRecursiveChildList(childContainer));
-            }
-            return childList;
-        }
-
-        protected virtual void SubscribeToChildEvents(ConnectionInfo child)
-        {
-            child.PropertyChanged += RaisePropertyChangedEvent;
-            var childAsContainer = child as ContainerInfo;
-            if (childAsContainer == null) return;
-            childAsContainer.CollectionChanged += RaiseCollectionChangedEvent;
-        }
-
-        protected virtual void UnsubscribeToChildEvents(ConnectionInfo child)
-        {
-            child.PropertyChanged -= RaisePropertyChangedEvent;
-            var childAsContainer = child as ContainerInfo;
-            if (childAsContainer == null) return;
-            childAsContainer.CollectionChanged -= RaiseCollectionChangedEvent;
-        }
-
-        public event NotifyCollectionChangedEventHandler? CollectionChanged;
-        private void RaiseCollectionChangedEvent(object? sender, NotifyCollectionChangedEventArgs args)
-        {
-            CollectionChanged?.Invoke(sender, args);
-        }
-	}
+    public event NotifyCollectionChangedEventHandler? CollectionChanged;
+    private void RaiseCollectionChangedEvent(object? sender, NotifyCollectionChangedEventArgs args)
+    {
+        CollectionChanged?.Invoke(sender, args);
+    }
 }

@@ -1,18 +1,14 @@
-﻿namespace mRemoteUG.Config.DataProviders
+namespace mRemoteUG.Config.DataProviders;
+
+public class FileDataProviderWithRollingBackup : FileDataProvider
 {
-    public class FileDataProviderWithRollingBackup : FileDataProvider
+    public FileDataProviderWithRollingBackup(string filePath) : base(filePath)
     {
-        private readonly FileBackupCreator _fileBackupCreator;
+    }
 
-        public FileDataProviderWithRollingBackup(string filePath) : base(filePath)
-        {
-            _fileBackupCreator = new FileBackupCreator();
-        }
-
-        public override void Save(string content)
-        {
-            _fileBackupCreator.CreateBackupFile(FilePath);
-            base.Save(content);
-        }
+    public override void Save(string content)
+    {
+        FileBackupCreator.CreateBackupFile(FilePath);
+        base.Save(content);
     }
 }

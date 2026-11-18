@@ -791,6 +791,15 @@ namespace mRemoteUG {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to {0} is a Chocolatey launcher that starts PuTTY in a separate window and exits, so PuTTY cannot be shown in a tab. Use the real putty.exe instead; running the launcher with --shimgen-noop prints where it is..
+        /// </summary>
+        internal static string strPuttyPathIsLauncherShim {
+            get {
+                return ResourceManager.GetString("strPuttyPathIsLauncherShim", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Set the path to PuTTY under Tools > Options > Advanced..
         /// </summary>
         internal static string strPuttyConfigureHint {
@@ -2271,6 +2280,15 @@ namespace mRemoteUG {
         internal static string strPasswordStatusTooShort {
             get {
                 return ResourceManager.GetString("strPasswordStatusTooShort", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The password must not be made of spaces only..
+        /// </summary>
+        internal static string strPasswordStatusWhitespace {
+            get {
+                return ResourceManager.GetString("strPasswordStatusWhitespace", resourceCulture);
             }
         }
         

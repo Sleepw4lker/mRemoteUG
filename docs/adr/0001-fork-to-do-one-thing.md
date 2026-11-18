@@ -1,6 +1,6 @@
 ---
 date: 2026-09-20
-status: amended by ADR-0002
+status: accepted, amended by ADR-0002
 ---
 
 # Fork mRemoteNG and strip it to one job

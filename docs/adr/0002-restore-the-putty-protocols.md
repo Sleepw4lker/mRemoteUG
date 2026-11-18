@@ -1,5 +1,6 @@
 ---
 date: 2026-09-21
+status: accepted
 ---
 
 # Restore the PuTTY-driven protocols

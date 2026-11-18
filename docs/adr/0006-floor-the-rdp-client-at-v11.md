@@ -1,5 +1,6 @@
 ---
 date: 2026-09-22
+status: accepted
 ---
 
 # Drive the RDP control through IMsRdpClient10, floored at v11

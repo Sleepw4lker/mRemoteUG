@@ -1,12 +1,14 @@
 ---
 date: 2026-09-22
-status: amended by ADR-0019
+status: accepted, amended by ADR-0019
 ---
 
-# Reduce the runtime dependency set to log4net
+# Reduce the runtime dependency set to one logging library
 
-`mRemoteV1` now has exactly one `PackageReference`: log4net. Everything else the fork inherited
-was removed, each for its own reason:
+The application (`src/mRemoteUG`, `mRemoteV1` when this was written) has exactly one
+`PackageReference`, its logging library: log4net then, Serilog since
+[ADR-0019](0019-serilog-instead-of-log4net.md). Everything else the fork inherited was removed,
+each for its own reason:
 
 - **AdmPwd.PDSWrapper** (`252cd01`) — LAPS/AdmPwd.E password retrieval. A native wrapper for an
   enterprise feature outside this fork's scope.
@@ -22,7 +24,7 @@ was removed, each for its own reason:
   also put a WMI call on the startup path. Replaced with `RegNotifyChangeKeyValue`, which is
   what that API is for.
 
-log4net stays because file logging is the fork's primary diagnostic channel — behavioural
+log4net stayed because file logging is the fork's primary diagnostic channel — behavioural
 verification happens by reading a log off another machine
 ([ADR-0013](0013-selftest-as-the-verification-mechanism.md)) — and because it is configured in
 code (`2ee61ff`) rather than from `app.config`, which was deleted along with it (`c940aa7`,
@@ -36,8 +38,9 @@ swap intact - Serilog's `net10.0` target has no transitive dependencies of its o
 logging one at all.
 
 The test project keeps NUnit 4 (`b4d14a0`, moved from NUnit 2-era `NUnit3TestAdapter`
-conventions), NSubstitute, and log4net. `mRemoteNG.Specs` was dropped from the solution
-(`23f69a2`) as an unmaintained third test project.
+conventions) and NSubstitute. It kept log4net as well when this was written, and has had no
+logging package since ADR-0019. `mRemoteNG.Specs` was dropped from the solution (`23f69a2`) as an
+unmaintained third test project.
 
 The motivation is not dependency purism: every one of these had to be evaluated for .NET 10
 compatibility during [ADR-0003](0003-target-net-10.md), and a dependency that has to be
@@ -57,3 +60,15 @@ That is the test for any future tool: not whether it has dependencies, but wheth
 resolve them to build, run or ship the application. `Tools/verify-icons.ps1` is the reason this
 stays honest rather than becoming a loophole - it re-renders and compares, so the committed output
 can be checked against its source without the application ever gaining a rasterizer.
+
+Shipping the MSI is the one place that test is met and accepted: the `Release Installer`
+configuration resolves the WiX 5 SDK with its `UI`, `Util` and `Heat` extensions, and the
+custom-action DLL resolves `WixToolset.Dtf.CustomAction`
+([ADR-0016](0016-wix-5-and-the-desktop-runtime.md)). That is packaging tooling, pinned to one
+version, and none of it is installed: the custom-action DLL travels in the MSI's `Binary` table
+and runs only while `msiexec` does. The installed application still has exactly one
+`PackageReference`.
+
+*History: written 2026-09-22; corrected 2026-10-07 - the title, the opening and the test
+project's packages now reflect the swap to Serilog in ADR-0019, and the installer's build-time
+packages are acknowledged.*

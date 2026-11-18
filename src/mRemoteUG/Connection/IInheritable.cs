@@ -1,7 +1,6 @@
-﻿namespace mRemoteUG.Connection
+namespace mRemoteUG.Connection;
+
+public interface IInheritable
 {
-    public interface IInheritable
-    {
-        ConnectionInfoInheritance Inheritance { get; set; }
-    }
+    ConnectionInfoInheritance Inheritance { get; set; }
 }

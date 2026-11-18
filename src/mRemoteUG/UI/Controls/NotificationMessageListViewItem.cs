@@ -1,19 +1,17 @@
-﻿using System;
-using System.Windows.Forms;
+using System.Globalization;
+
 using mRemoteUG.Messages;
 
-namespace mRemoteUG.UI.Controls
-{
-    public class NotificationMessageListViewItem : ListViewItem
-    {
-        public NotificationMessageListViewItem(IMessage message)
-        {
-            if (message == null)
-                throw new ArgumentNullException(nameof(message));
+namespace mRemoteUG.UI.Controls;
 
-            ImageIndex = Convert.ToInt32(message.Class);
-            Text = message.Text.Replace(Environment.NewLine, "  ");
-            Tag = message;
-        }
+public class NotificationMessageListViewItem : ListViewItem
+{
+    public NotificationMessageListViewItem(IMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        ImageIndex = Convert.ToInt32(message.Class, CultureInfo.InvariantCulture);
+        Text = message.Text.Replace(Environment.NewLine, "  ");
+        Tag = message;
     }
 }

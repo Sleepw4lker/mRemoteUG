@@ -1,58 +1,70 @@
-﻿using System.IO;
 using mRemoteUG.Tools;
 
-namespace mRemoteUG.Tests.TestHelpers
+namespace mRemoteUG.Tests.TestHelpers;
+
+public class FileTestHelpers
 {
-	public class FileTestHelpers
+    public static void DeleteTestFile(string path)
     {
-        public static void DeleteTestFile(string path)
+        if (File.Exists(path))
         {
-            if (File.Exists(path))
-                File.Delete(path);
+            File.Delete(path);
+        }
+    }
+
+    public static void DeleteFilesInDirectory(string directory, string fileMatching)
+    {
+        string[] filesToDelete = Directory.GetFiles(directory, fileMatching, SearchOption.TopDirectoryOnly);
+        foreach (string file in filesToDelete)
+        {
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
+        }
+    }
+
+    public static void DeleteDirectory(string? directory)
+    {
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    public static string NewTempFilePath(string extension = "")
+    {
+        string folderPath = GetTestSpecificTempDirectory();
+        string newPath = Path.Combine(folderPath, Path.GetRandomFileName());
+        if (!string.IsNullOrWhiteSpace(extension))
+        {
+            newPath = newPath + extension;
         }
 
-        public static void DeleteFilesInDirectory(string directory, string fileMatching)
+        if (!Directory.Exists(folderPath))
         {
-            var filesToDelete = Directory.GetFiles(directory, fileMatching, SearchOption.TopDirectoryOnly);
-            foreach (var file in filesToDelete)
-                if (File.Exists(file))
-                    File.Delete(file);
+            Directory.CreateDirectory(folderPath);
         }
 
-        public static void DeleteDirectory(string directory)
-        {
-			if (Directory.Exists(directory))
-				Directory.Delete(directory, true);
-        }
+        return newPath;
+    }
 
-        public static string NewTempFilePath(string extension = "")
-        {
-            var newPath = Path.Combine(GetTestSpecificTempDirectory(), Path.GetRandomFileName());
-            if (!string.IsNullOrWhiteSpace(extension))
-	            newPath = newPath + extension;
-            var folderPath = Path.GetDirectoryName(newPath);
-            if (!Directory.Exists(folderPath))
-                Directory.CreateDirectory(folderPath);
-            return newPath;
-        }
+    /// <summary>
+    /// Gets a testing directory that should be unique for a
+    /// particular mRemoteUG test.
+    /// </summary>
+    public static string GetTestSpecificTempDirectory()
+    {
+        return Path.Combine(Path.GetTempPath(), "mRemoteUG.Tests", Path.GetRandomFileName());
+    }
 
-		/// <summary>
-		/// Gets a testing directory that should be unique for a
-		/// particular mRemoteUG test.
-		/// </summary>
-        public static string GetTestSpecificTempDirectory()
-        {
-            return Path.Combine(Path.GetTempPath(), "mRemoteUG.Tests", Path.GetRandomFileName());
-        }
-
-		public static DisposableAction DisposableTempFile(out string filePath, string extension = "")
-		{
-			var file = NewTempFilePath(extension);
-			filePath = file;
-			File.AppendAllText(file, "");
-			return new DisposableAction(
-				() => {}, 
-				() => DeleteDirectory(Path.GetDirectoryName(file)));
-		}
+    public static DisposableAction DisposableTempFile(out string filePath, string extension = "")
+    {
+        string file = NewTempFilePath(extension);
+        filePath = file;
+        File.AppendAllText(file, "");
+        return new DisposableAction(
+            () => { },
+            () => DeleteDirectory(Path.GetDirectoryName(file)));
     }
 }

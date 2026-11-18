@@ -62,7 +62,7 @@ namespace mRemoteUG.UI.Window
             this.olvConnections.Sorted = false;
             this.olvConnections.Name = "olvConnections";
             this.olvConnections.NodeDeletionConfirmer = alwaysConfirmYes1;
-            this.olvConnections.PostSetupActions = new mRemoteUG.UI.Controls.IConnectionTreeDelegate[0];
+            this.olvConnections.PostSetupActions = new mRemoteUG.UI.Controls.IConnectionTreePostSetupAction[0];
             treeNodeCompositeClickHandler2.ClickHandlers = new mRemoteUG.Tree.ITreeNodeClickHandler<ConnectionInfo>[0];
             this.olvConnections.SingleClickHandler = treeNodeCompositeClickHandler2;
             this.olvConnections.TabIndex = 20;

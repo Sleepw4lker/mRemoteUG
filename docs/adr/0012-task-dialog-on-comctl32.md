@@ -1,5 +1,6 @@
 ---
 date: 2026-09-22
+status: accepted
 ---
 
 # Re-implement the task dialog on the comctl32 TaskDialog

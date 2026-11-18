@@ -1,25 +1,26 @@
-#nullable enable
+namespace mRemoteUG.Security;
 
-namespace mRemoteUG.Security
+public class SaveFilter
 {
-	public class SaveFilter
-	{
-		public SaveFilter(bool disableEverything = false)
-		{
-		    if (disableEverything) return;
-		    SaveUsername = true;
-		    SavePassword = true;
-		    SaveDomain = true;
-            SaveInheritance = true;
-		}
+    public SaveFilter(bool disableEverything = false)
+    {
+        if (disableEverything)
+        {
+            return;
+        }
 
-	    public bool SaveUsername { get; set; }
+        SaveUsername = true;
+        SavePassword = true;
+        SaveDomain = true;
+        SaveInheritance = true;
+    }
 
-	    public bool SavePassword { get; set; }
+    public bool SaveUsername { get; set; }
 
-	    public bool SaveDomain { get; set; }
+    public bool SavePassword { get; set; }
+
+    public bool SaveDomain { get; set; }
 
 
-	    public bool SaveInheritance { get; set; }
-	}
+    public bool SaveInheritance { get; set; }
 }

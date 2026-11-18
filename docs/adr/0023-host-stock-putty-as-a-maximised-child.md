@@ -1,5 +1,6 @@
 ---
 date: 2026-09-24
+status: accepted
 ---
 
 # Host stock PuTTY as a maximised, non-child window
@@ -22,7 +23,11 @@ the call returns — and so is every `MoveWindow` after it. The measured detail 
 zoomed window only ever receives `SIZE_MAXIMIZED`, a branch that never touches the style.
 Zoomed-and-captionless is also PuTTY's own definition of full-screen: it sizes the terminal
 grid from whatever client area it is given, centres it, and ignores server-side requests to
-resize the window — which is what an embedded terminal wants anyway.
+resize the window — which is what an embedded terminal wants anyway. (Since
+[ADR-0031](0031-retry-the-putty-chrome-strip-once.md): `SetParent`, between the strip and the
+maximise, occasionally lets a `SIZE_RESTORED` put the caption back — 2 runs in 50 — so `Adopt`
+reads the style back after maximising and, if the caption is there, strips and maximises once
+more.)
 
 **Decision 2: the window is *not* made `WS_CHILD`, against the `SetParent` documentation's
 advice.** The first cut of decision 1 kept `890b245`'s `WS_CHILD`, and the title bar went away

@@ -1,8 +1,6 @@
-﻿#nullable enable
-namespace mRemoteUG.Security
+namespace mRemoteUG.Security;
+
+public interface ICryptoProviderFactory
 {
-    public interface ICryptoProviderFactory
-    {
-        ICryptographyProvider Build();
-    }
+    ICryptographyProvider Build();
 }

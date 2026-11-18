@@ -1,17 +1,15 @@
-#nullable enable
-using System;
-
 // ReSharper disable InconsistentNaming
-namespace mRemoteUG.Security
+namespace mRemoteUG.Security;
+
+public enum BlockCipherModes
 {
-    public enum BlockCipherModes
-    {
-        GCM,
+    GCM,
 
-        [Obsolete("No longer implemented after the BouncyCastle removal. Retained only so old files that recorded this mode are recognized (and reported as unsupported) instead of silently misinterpreted.")]
-        CCM,
+    [Obsolete("No longer implemented after the BouncyCastle removal. Retained only so old files that recorded this " +
+              "mode are recognized (and reported as unsupported) instead of silently misinterpreted.")]
+    CCM,
 
-        [Obsolete("No longer implemented after the BouncyCastle removal. Retained only so old files that recorded this mode are recognized (and reported as unsupported) instead of silently misinterpreted.")]
-        EAX
-    }
+    [Obsolete("No longer implemented after the BouncyCastle removal. Retained only so old files that recorded this " +
+              "mode are recognized (and reported as unsupported) instead of silently misinterpreted.")]
+    EAX
 }

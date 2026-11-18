@@ -1,90 +1,101 @@
-﻿using System;
-using System.Linq;
 using System.Security;
 using System.Xml.Linq;
+
 using mRemoteUG.Connection;
 using mRemoteUG.Container;
 using mRemoteUG.Security;
 using mRemoteUG.Tree;
 using mRemoteUG.Tree.Root;
 
-namespace mRemoteUG.Config.Serializers.Xml
+namespace mRemoteUG.Config.Serializers.Xml;
+
+public class XmlConnectionsDocumentCompiler
 {
-    public class XmlConnectionsDocumentCompiler
+    private readonly ICryptographyProvider _cryptographyProvider;
+    private readonly ISerializer<ConnectionInfo, XElement> _connectionNodeSerializer;
+
+    public XmlConnectionsDocumentCompiler(
+        ICryptographyProvider cryptographyProvider,
+        ISerializer<ConnectionInfo, XElement> connectionNodeSerializer)
     {
-        private readonly ICryptographyProvider _cryptographyProvider;
-        private SecureString _encryptionKey;
-        private readonly ISerializer<ConnectionInfo, XElement> _connectionNodeSerializer;
+        ArgumentNullException.ThrowIfNull(cryptographyProvider);
 
-        public XmlConnectionsDocumentCompiler(ICryptographyProvider cryptographyProvider, ISerializer<ConnectionInfo, XElement> connectionNodeSerializer)
+        ArgumentNullException.ThrowIfNull(connectionNodeSerializer);
+
+        _cryptographyProvider = cryptographyProvider;
+        _connectionNodeSerializer = connectionNodeSerializer;
+    }
+
+    public XDocument CompileDocument(ConnectionTreeModel connectionTreeModel, bool fullFileEncryption)
+    {
+        RootNodeInfo rootNodeInfo = GetRootNodeFromConnectionTreeModel(connectionTreeModel);
+        return CompileDocument(rootNodeInfo, fullFileEncryption);
+    }
+
+    public XDocument CompileDocument(ConnectionInfo serializationTarget, bool fullFileEncryption)
+    {
+        RootNodeInfo rootNodeInfo = GetRootNodeFromConnectionInfo(serializationTarget);
+        SecureString encryptionKey = rootNodeInfo.PasswordString.ConvertToSecureString();
+        XElement rootElement = CompileRootNode(rootNodeInfo, fullFileEncryption);
+
+        CompileRecursive(serializationTarget, rootElement);
+        var xmlDeclaration = new XDeclaration("1.0", "utf-8", null);
+        var xmlDocument = new XDocument(xmlDeclaration, rootElement);
+        if (fullFileEncryption)
         {
-            if (cryptographyProvider == null)
-                throw new ArgumentNullException(nameof(cryptographyProvider));
-            if (connectionNodeSerializer == null)
-                throw new ArgumentNullException(nameof(connectionNodeSerializer));
-
-            _cryptographyProvider = cryptographyProvider;
-            _connectionNodeSerializer = connectionNodeSerializer;
+            xmlDocument = new XmlConnectionsDocumentEncryptor(_cryptographyProvider)
+                .EncryptDocument(xmlDocument, encryptionKey);
         }
 
-        public XDocument CompileDocument(ConnectionTreeModel connectionTreeModel, bool fullFileEncryption)
+        return xmlDocument;
+    }
+
+    private void CompileRecursive(ConnectionInfo serializationTarget, XContainer parentElement)
+    {
+        XContainer newElement = parentElement;
+        if (!(serializationTarget is RootNodeInfo))
         {
-            var rootNodeInfo = GetRootNodeFromConnectionTreeModel(connectionTreeModel);
-            return CompileDocument(rootNodeInfo, fullFileEncryption);
+            newElement = CompileConnectionInfoNode(serializationTarget);
+            parentElement.Add(newElement);
+        }
+        var serializationTargetAsContainer = serializationTarget as ContainerInfo;
+        if (serializationTargetAsContainer == null)
+        {
+            return;
         }
 
-        public XDocument CompileDocument(ConnectionInfo serializationTarget, bool fullFileEncryption)
+        foreach (ConnectionInfo child in serializationTargetAsContainer.Children)
         {
-            var rootNodeInfo = GetRootNodeFromConnectionInfo(serializationTarget);
-            _encryptionKey = rootNodeInfo.PasswordString.ConvertToSecureString();
-            var rootElement = CompileRootNode(rootNodeInfo, fullFileEncryption);
-
-            CompileRecursive(serializationTarget, rootElement);
-            var xmlDeclaration = new XDeclaration("1.0", "utf-8", null);
-            var xmlDocument = new XDocument(xmlDeclaration, rootElement);
-            if (fullFileEncryption)
-                xmlDocument = new XmlConnectionsDocumentEncryptor(_cryptographyProvider).EncryptDocument(xmlDocument, _encryptionKey);
-            return xmlDocument;
+            CompileRecursive(child, newElement);
         }
+    }
 
-        private void CompileRecursive(ConnectionInfo serializationTarget, XContainer parentElement)
+    private static RootNodeInfo GetRootNodeFromConnectionTreeModel(ConnectionTreeModel connectionTreeModel)
+    {
+        return (RootNodeInfo)connectionTreeModel.RootNodes.First(node => node is RootNodeInfo);
+    }
+
+    private static RootNodeInfo GetRootNodeFromConnectionInfo(ConnectionInfo connectionInfo)
+    {
+        while (true)
         {
-            var newElement = parentElement;
-            if (!(serializationTarget is RootNodeInfo))
+            var connectionInfoAsRootNode = connectionInfo as RootNodeInfo;
+            if (connectionInfoAsRootNode != null)
             {
-                newElement = CompileConnectionInfoNode(serializationTarget);
-                parentElement.Add(newElement);
+                return connectionInfoAsRootNode;
             }
-            var serializationTargetAsContainer = serializationTarget as ContainerInfo;
-            if (serializationTargetAsContainer == null) return;
-            foreach (var child in serializationTargetAsContainer.Children)
-                CompileRecursive(child, newElement);
-        }
 
-        private RootNodeInfo GetRootNodeFromConnectionTreeModel(ConnectionTreeModel connectionTreeModel)
-        {
-            return (RootNodeInfo)connectionTreeModel.RootNodes.First(node => node is RootNodeInfo);
+            connectionInfo = connectionInfo?.Parent ?? new RootNodeInfo(RootNodeType.Connection);
         }
+    }
 
-        private RootNodeInfo GetRootNodeFromConnectionInfo(ConnectionInfo connectionInfo)
-        {
-            while (true)
-            {
-                var connectionInfoAsRootNode = connectionInfo as RootNodeInfo;
-                if (connectionInfoAsRootNode != null) return connectionInfoAsRootNode;
-                connectionInfo = connectionInfo?.Parent ?? new RootNodeInfo(RootNodeType.Connection);
-            }
-        }
+    private XElement CompileRootNode(RootNodeInfo rootNodeInfo, bool fullFileEncryption)
+    {
+        return XmlRootNodeSerializer.SerializeRootNodeInfo(rootNodeInfo, _cryptographyProvider, fullFileEncryption);
+    }
 
-        private XElement CompileRootNode(RootNodeInfo rootNodeInfo, bool fullFileEncryption)
-        {
-            var rootNodeSerializer = new XmlRootNodeSerializer();
-            return rootNodeSerializer.SerializeRootNodeInfo(rootNodeInfo, _cryptographyProvider, fullFileEncryption);
-        }
-
-        private XElement CompileConnectionInfoNode(ConnectionInfo connectionInfo)
-        {
-            return _connectionNodeSerializer.Serialize(connectionInfo);
-        }
+    private XElement CompileConnectionInfoNode(ConnectionInfo connectionInfo)
+    {
+        return _connectionNodeSerializer.Serialize(connectionInfo);
     }
 }

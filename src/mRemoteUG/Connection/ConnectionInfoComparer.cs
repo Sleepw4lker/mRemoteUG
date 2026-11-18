@@ -1,33 +1,47 @@
-﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 
 
-namespace mRemoteUG.Connection
+namespace mRemoteUG.Connection;
+
+public class ConnectionInfoComparer<TProperty> : IComparer<ConnectionInfo> where TProperty : IComparable<TProperty>
 {
-    public class ConnectionInfoComparer<TProperty> : IComparer<ConnectionInfo> where TProperty : IComparable<TProperty>
+    private readonly Func<ConnectionInfo, TProperty> _sortExpression;
+    public ListSortDirection SortDirection { get; set; } = ListSortDirection.Ascending;
+
+    public ConnectionInfoComparer(Func<ConnectionInfo, TProperty> sortExpression)
     {
-        private readonly Func<ConnectionInfo, TProperty> _sortExpression;
-        public ListSortDirection SortDirection { get; set; } = ListSortDirection.Ascending;
+        _sortExpression = sortExpression;
+    }
 
-        public ConnectionInfoComparer(Func<ConnectionInfo, TProperty> sortExpression)
+    public int Compare(ConnectionInfo? x, ConnectionInfo? y)
+    {
+        // IComparer<T> allows nulls; order them first, as Comparer<T>.Default does, rather than
+        // hand them to a sort expression that would dereference them.
+        if (ReferenceEquals(x, y))
         {
-            _sortExpression = sortExpression;
+            return 0;
         }
 
-        public int Compare(ConnectionInfo x, ConnectionInfo y)
+        if (x == null)
         {
-            return SortDirection == ListSortDirection.Ascending ? CompareAscending(x, y) : CompareDescending(x, y);
+            return -1;
         }
 
-        private int CompareAscending(ConnectionInfo x, ConnectionInfo y)
+        if (y == null)
         {
-            return _sortExpression(x).CompareTo(_sortExpression(y));
+            return 1;
         }
 
-        private int CompareDescending(ConnectionInfo x, ConnectionInfo y)
-        {
-            return _sortExpression(y).CompareTo(_sortExpression(x));
-        }
+        return SortDirection == ListSortDirection.Ascending ? CompareAscending(x, y) : CompareDescending(x, y);
+    }
+
+    private int CompareAscending(ConnectionInfo x, ConnectionInfo y)
+    {
+        return _sortExpression(x).CompareTo(_sortExpression(y));
+    }
+
+    private int CompareDescending(ConnectionInfo x, ConnectionInfo y)
+    {
+        return _sortExpression(y).CompareTo(_sortExpression(x));
     }
 }

@@ -1,22 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
 using mRemoteUG.Connection;
 
 
-namespace mRemoteUG.Tree
-{
-    public class TreeNodeCompositeClickHandler : ITreeNodeClickHandler<ConnectionInfo>
-    {
-        public IEnumerable<ITreeNodeClickHandler<ConnectionInfo>> ClickHandlers { get; set; } = new ITreeNodeClickHandler<ConnectionInfo>[0];
+namespace mRemoteUG.Tree;
 
-        public void Execute(ConnectionInfo clickedNode)
+public class TreeNodeCompositeClickHandler : ITreeNodeClickHandler<ConnectionInfo>
+{
+    public IEnumerable<ITreeNodeClickHandler<ConnectionInfo>> ClickHandlers { get; set; } =
+        Array.Empty<ITreeNodeClickHandler<ConnectionInfo>>();
+
+    public void Execute(ConnectionInfo clickedNode)
+    {
+        ArgumentNullException.ThrowIfNull(clickedNode);
+
+        foreach (ITreeNodeClickHandler<ConnectionInfo> handler in ClickHandlers)
         {
-            if (clickedNode == null)
-                throw new ArgumentNullException(nameof(clickedNode));
-            foreach (var handler in ClickHandlers)
-            {
-                handler.Execute(clickedNode);
-            }
+            handler.Execute(clickedNode);
         }
     }
 }

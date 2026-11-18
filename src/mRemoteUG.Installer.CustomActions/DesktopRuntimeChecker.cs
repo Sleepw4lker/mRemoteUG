@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Microsoft.Win32;
+
 using WixToolset.Dtf.WindowsInstaller;
 
 namespace mRemoteUG.Installer.CustomActions
@@ -40,16 +42,21 @@ namespace mRemoteUG.Installer.CustomActions
         /// </summary>
         public void Execute(int requiredMajorVersion, string resultProperty)
         {
-            var installed = GetInstalledVersions();
+            List<Version> installed = GetInstalledVersions();
 
             if (installed.Count == 0)
+            {
                 _session.Log("DesktopRuntimeChecker: no Microsoft.WindowsDesktop.App versions found.");
+            }
             else
+            {
                 _session.Log("DesktopRuntimeChecker: found " +
                              string.Join(", ", installed.Select(v => v.ToString()).ToArray()));
+            }
 
-            var satisfied = installed.Any(v => v.Major >= requiredMajorVersion);
-            _session.Log($"DesktopRuntimeChecker: required major version {requiredMajorVersion}, satisfied = {satisfied}");
+            bool satisfied = installed.Any(v => v.Major >= requiredMajorVersion);
+            _session.Log(
+                $"DesktopRuntimeChecker: required major version {requiredMajorVersion}, satisfied = {satisfied}");
             _session[resultProperty] = satisfied ? "1" : "0";
         }
 
@@ -60,7 +67,7 @@ namespace mRemoteUG.Installer.CustomActions
             {
                 // Explicitly the 32-bit view; see the remarks above.
                 using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32))
-                using (var key = baseKey.OpenSubKey(SharedFxKey))
+                using (RegistryKey key = baseKey.OpenSubKey(SharedFxKey))
                 {
                     if (key == null)
                     {
@@ -68,12 +75,16 @@ namespace mRemoteUG.Installer.CustomActions
                         return versions;
                     }
 
-                    foreach (var name in key.GetValueNames())
+                    foreach (string name in key.GetValueNames())
                     {
-                        if (Version.TryParse(name, out var version))
+                        if (Version.TryParse(name, out Version version))
+                        {
                             versions.Add(version);
+                        }
                         else
+                        {
                             _session.Log($"DesktopRuntimeChecker: ignoring unparseable value name '{name}'.");
+                        }
                     }
                 }
             }

@@ -185,6 +185,9 @@
     <Setting Name="InhDefaultPuttySession" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="InhDefaultRedirectClipboard" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
     <Setting Name="InhDefaultRedirectDiskDrives" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>

@@ -1,5 +1,6 @@
 ---
 date: 2026-09-23
+status: accepted
 ---
 
 # Carry the exception and the event time to the log, instead of flattening them away

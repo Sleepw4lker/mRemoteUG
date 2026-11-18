@@ -1,8 +1,7 @@
-﻿namespace mRemoteUG.Config.Connections
+namespace mRemoteUG.Config.Connections;
+
+public enum SaveFormat
 {
-    public enum SaveFormat
-    {
-        mRXML,
-        mRCSV
-    }
+    mRXML,
+    mRCSV
 }

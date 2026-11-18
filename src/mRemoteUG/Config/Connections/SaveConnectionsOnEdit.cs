@@ -1,64 +1,75 @@
-﻿using System;
 using System.Collections.Specialized;
 using System.ComponentModel;
+
 using mRemoteUG.Connection;
+using mRemoteUG.Tree;
 using mRemoteUG.UI.Forms;
 
-namespace mRemoteUG.Config.Connections
+namespace mRemoteUG.Config.Connections;
+
+public class SaveConnectionsOnEdit
 {
-    public class SaveConnectionsOnEdit
+    private readonly ConnectionsService _connectionsService;
+
+    public SaveConnectionsOnEdit(ConnectionsService connectionsService)
     {
-        private readonly ConnectionsService _connectionsService;
+        ArgumentNullException.ThrowIfNull(connectionsService);
 
-        public SaveConnectionsOnEdit(ConnectionsService connectionsService)
+        _connectionsService = connectionsService;
+        connectionsService.ConnectionsLoaded += ConnectionsServiceOnConnectionsLoaded;
+    }
+
+    private void ConnectionsServiceOnConnectionsLoaded(
+        object? sender,
+        ConnectionsLoadedEventArgs connectionsLoadedEventArgs)
+    {
+        connectionsLoadedEventArgs.NewConnectionTreeModel.CollectionChanged += ConnectionTreeModelOnCollectionChanged;
+        connectionsLoadedEventArgs.NewConnectionTreeModel.PropertyChanged += ConnectionTreeModelOnPropertyChanged;
+
+        ConnectionTreeModel? oldTree = connectionsLoadedEventArgs.PreviousConnectionTreeModel;
+        if (oldTree != null)
         {
-            if (connectionsService == null)
-                throw new ArgumentNullException(nameof(connectionsService));
+            oldTree.CollectionChanged -= ConnectionTreeModelOnCollectionChanged;
+            oldTree.PropertyChanged -= ConnectionTreeModelOnPropertyChanged;
+        }
+    }
 
-            _connectionsService = connectionsService;
-            connectionsService.ConnectionsLoaded += ConnectionsServiceOnConnectionsLoaded;
+    private void ConnectionTreeModelOnPropertyChanged(object? sender, PropertyChangedEventArgs propertyChangedEventArgs)
+    {
+        // Opening or closing a session is transient UI state, not an edit. Saving here made
+        // every connect/disconnect re-serialize and re-encrypt the whole connections file
+        // (PBKDF2 per secret) while the session was still tearing down. The "Connected" flag
+        // is still persisted on exit: frmMain_FormClosing runs Shutdown.Cleanup ->
+        // SaveConnections() before the connection windows are closed, so PreviousSessionOpener
+        // still reopens last session's connections.
+        if (propertyChangedEventArgs.PropertyName == nameof(ConnectionInfo.OpenConnections))
+        {
+            return;
         }
 
-        private void ConnectionsServiceOnConnectionsLoaded(object? sender, ConnectionsLoadedEventArgs connectionsLoadedEventArgs)
-        {
-            connectionsLoadedEventArgs.NewConnectionTreeModel.CollectionChanged += ConnectionTreeModelOnCollectionChanged;
-            connectionsLoadedEventArgs.NewConnectionTreeModel.PropertyChanged += ConnectionTreeModelOnPropertyChanged;
+        // PropertyName is null when every property changed; the save only logs the name.
+        SaveConnectionOnEdit(propertyChangedEventArgs.PropertyName ?? string.Empty);
+    }
 
-            var oldTree = connectionsLoadedEventArgs.PreviousConnectionTreeModel;
-            if (oldTree != null)
-            {
-                oldTree.CollectionChanged -= ConnectionTreeModelOnCollectionChanged;
-                oldTree.PropertyChanged -= ConnectionTreeModelOnPropertyChanged;
-            }
+    private void ConnectionTreeModelOnCollectionChanged(
+        object? sender,
+        NotifyCollectionChangedEventArgs notifyCollectionChangedEventArgs)
+    {
+        SaveConnectionOnEdit();
+    }
+
+    private void SaveConnectionOnEdit(string propertyName = "")
+    {
+        if (!mRemoteUG.Settings.Default.SaveConnectionsAfterEveryEdit)
+        {
+            return;
         }
 
-        private void ConnectionTreeModelOnPropertyChanged(object? sender, PropertyChangedEventArgs propertyChangedEventArgs)
+        if (FrmMain.Default.IsClosing)
         {
-            // Opening or closing a session is transient UI state, not an edit. Saving here made
-            // every connect/disconnect re-serialize and re-encrypt the whole connections file
-            // (PBKDF2 per secret) while the session was still tearing down. The "Connected" flag
-            // is still persisted on exit: frmMain_FormClosing runs Shutdown.Cleanup ->
-            // SaveConnections() before the connection windows are closed, so PreviousSessionOpener
-            // still reopens last session's connections.
-            if (propertyChangedEventArgs.PropertyName == nameof(ConnectionInfo.OpenConnections))
-                return;
-
-            SaveConnectionOnEdit(propertyChangedEventArgs.PropertyName);
+            return;
         }
 
-        private void ConnectionTreeModelOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs notifyCollectionChangedEventArgs)
-        {
-            SaveConnectionOnEdit();
-        }
-
-        private void SaveConnectionOnEdit(string propertyName = "")
-        {
-            if (!mRemoteUG.Settings.Default.SaveConnectionsAfterEveryEdit)
-                return;
-            if (FrmMain.Default.IsClosing)
-                return;
-
-            _connectionsService.SaveConnectionsAsync(propertyName);
-        }
+        _connectionsService.SaveConnectionsAsync(propertyName);
     }
 }

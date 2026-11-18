@@ -1,19 +1,19 @@
-﻿using System.Linq;
 using mRemoteUG.Container;
+using mRemoteUG.Tree.Root;
 using mRemoteUG.UI.Controls;
 
 
-namespace mRemoteUG.Tree
+namespace mRemoteUG.Tree;
+
+public class PreviouslyOpenedFolderExpander : IConnectionTreePostSetupAction
 {
-    public class PreviouslyOpenedFolderExpander : IConnectionTreeDelegate
+    public void Execute(IConnectionTree connectionTree)
     {
-        public void Execute(IConnectionTree connectionTree)
-        {
-            var rootNode = connectionTree.GetRootConnectionNode();
-            var containerList = connectionTree.ConnectionTreeModel.GetRecursiveChildList(rootNode).OfType<ContainerInfo>();
-            var previouslyExpandedNodes = containerList.Where(container => container.IsExpanded);
-            connectionTree.ExpandedObjects = previouslyExpandedNodes;
-            connectionTree.InvokeRebuildAll(true);
-        }
+        RootNodeInfo rootNode = connectionTree.GetRootConnectionNode();
+        IEnumerable<ContainerInfo> containerList = ConnectionTreeModel.GetRecursiveChildList(rootNode)
+            .OfType<ContainerInfo>();
+        IEnumerable<ContainerInfo> previouslyExpandedNodes = containerList.Where(container => container.IsExpanded);
+        connectionTree.ExpandedObjects = previouslyExpandedNodes;
+        connectionTree.InvokeRebuildAll(true);
     }
 }

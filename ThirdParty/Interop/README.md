@@ -29,7 +29,7 @@ Run `Tools\regenerate-mstsc-interop.ps1` (requires Visual Studio for the
 .NET Framework MSBuild), then run the guard tests:
 
 ```
-dotnet test src/mRemoteUG.Tests --filter AxInteropSurface
+dotnet test --project src/mRemoteUG.Tests --filter AxInteropSurface
 ```
 
 The type library (`{8C11EFA1-92C3-11D1-BC1E-00C04FA31489}` v1.0) has been stable

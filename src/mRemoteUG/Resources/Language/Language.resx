@@ -742,6 +742,9 @@ If you run into such an error, please create a new connection file!</value>
   <data name="strPasswordStatusTooShort" xml:space="preserve">
     <value>The password must be at least 3 characters long.</value>
   </data>
+  <data name="strPasswordStatusWhitespace" xml:space="preserve">
+    <value>The password must not be made of spaces only.</value>
+  </data>
   <data name="strPropertyDescriptionAddress" xml:space="preserve">
     <value>Enter the hostname or ip you want to connect to.</value>
   </data>
@@ -1491,6 +1494,9 @@ Message:
   </data>
   <data name="strPuttyPathNotFound" xml:space="preserve">
     <value>The configured PuTTY executable was not found: {0}</value>
+  </data>
+  <data name="strPuttyPathIsLauncherShim" xml:space="preserve">
+    <value>{0} is a Chocolatey launcher that starts PuTTY in a separate window and exits, so PuTTY cannot be shown in a tab. Use the real putty.exe instead; running the launcher with --shimgen-noop prints where it is.</value>
   </data>
   <data name="strPuttyConfigureHint" xml:space="preserve">
     <value>Set the path to PuTTY under Tools &gt; Options &gt; Advanced.</value>

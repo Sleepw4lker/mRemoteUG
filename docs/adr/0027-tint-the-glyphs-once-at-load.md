@@ -1,5 +1,6 @@
 ---
 date: 2026-09-25
+status: accepted
 ---
 
 # Ship the glyphs colourless and tint them once, at load

@@ -1,78 +1,102 @@
-﻿using System;
 using System.Configuration;
+using System.Globalization;
+using System.Reflection;
+
 using mRemoteUG.App;
 
 
-namespace mRemoteUG.Connection
-{
-	public class DefaultConnectionInfo : ConnectionInfo
-    {
-        public static DefaultConnectionInfo Instance { get; } = new DefaultConnectionInfo();
+namespace mRemoteUG.Connection;
 
-        private DefaultConnectionInfo()
+public class DefaultConnectionInfo : ConnectionInfo
+{
+    public static DefaultConnectionInfo Instance { get; } = new DefaultConnectionInfo();
+
+    private DefaultConnectionInfo()
+    {
+        IsDefault = true;
+        Inheritance = DefaultConnectionInheritance.Instance;
+    }
+
+    public void LoadFrom<TSource>(TSource sourceInstance, Func<string, string>? propertyNameMutator = null)
+    {
+        if (propertyNameMutator == null)
         {
-            IsDefault = true;
-	        Inheritance = DefaultConnectionInheritance.Instance;
+            propertyNameMutator = a => a;
         }
 
-        public void LoadFrom<TSource>(TSource sourceInstance, Func<string, string> propertyNameMutator = null)
+        IEnumerable<PropertyInfo> connectionProperties = GetSerializableProperties();
+        foreach (PropertyInfo property in connectionProperties)
         {
-            if (propertyNameMutator == null)
-	            propertyNameMutator = a => a;
-
-            var connectionProperties = GetSerializableProperties();
-            foreach (var property in connectionProperties)
+            try
             {
-                try
+                string expectedPropertyName = propertyNameMutator(property.Name);
+                PropertyInfo? propertyFromSource = typeof(TSource).GetProperty(expectedPropertyName);
+                if (propertyFromSource == null)
                 {
-	                var expectedPropertyName = propertyNameMutator(property.Name);
-					var propertyFromSource = typeof(TSource).GetProperty(expectedPropertyName);
-                    if (propertyFromSource == null)
-						throw new SettingsPropertyNotFoundException($"No property with name '{expectedPropertyName}' found.");
-
-					var valueFromSource = propertyFromSource.GetValue(sourceInstance, null);
-                    
-                    if (property.PropertyType.IsEnum)
-                    {
-                        property.SetValue(Instance, Enum.Parse(property.PropertyType, valueFromSource.ToString()), null);
-                        continue;
-                    }
-
-                    property.SetValue(Instance, Convert.ChangeType(valueFromSource, property.PropertyType), null);
+                    throw new SettingsPropertyNotFoundException(
+                        $"No property with name '{expectedPropertyName}' found.");
                 }
-                catch (Exception ex)
+
+                object? valueFromSource = propertyFromSource.GetValue(sourceInstance, null);
+
+                if (property.PropertyType.IsEnum)
                 {
-                    Runtime.MessageCollector?.AddExceptionMessage($"Error loading default connectioninfo property {property.Name}", ex);
+                    // A null source parses as "", which Enum.Parse rejects into the catch below, as the
+                    // NullReferenceException it used to throw here did.
+                    string enumText = valueFromSource?.ToString() ?? string.Empty;
+                    property.SetValue(Instance, Enum.Parse(property.PropertyType, enumText), null);
+                    continue;
                 }
+
+                property.SetValue(
+                    Instance,
+                    Convert.ChangeType(valueFromSource, property.PropertyType, CultureInfo.InvariantCulture),
+                    null);
+            }
+            catch (Exception ex)
+            {
+                Runtime.MessageCollector?.AddExceptionMessage(
+                    $"Error loading default connectioninfo property {property.Name}",
+                    ex);
             }
         }
+    }
 
-        public void SaveTo<TDestination>(TDestination destinationInstance, Func<string, string> propertyNameMutator = null)
+    public void SaveTo<TDestination>(TDestination destinationInstance, Func<string, string>? propertyNameMutator = null)
+    {
+        if (propertyNameMutator == null)
         {
-            if (propertyNameMutator == null)
-	            propertyNameMutator = (a) => a;
+            propertyNameMutator = (a) => a;
+        }
 
-            var connectionProperties = GetSerializableProperties();
+        IEnumerable<PropertyInfo> connectionProperties = GetSerializableProperties();
 
-            foreach (var property in connectionProperties)
+        foreach (PropertyInfo property in connectionProperties)
+        {
+            try
             {
-                try
+                string expectedPropertyName = propertyNameMutator(property.Name);
+                PropertyInfo? propertyFromDestination = typeof(TDestination).GetProperty(expectedPropertyName);
+
+                if (propertyFromDestination == null)
                 {
-	                var expectedPropertyName = propertyNameMutator(property.Name);
-					var propertyFromDestination = typeof(TDestination).GetProperty(expectedPropertyName);
-
-	                if (propertyFromDestination == null)
-		                throw new SettingsPropertyNotFoundException($"No property with name '{expectedPropertyName}' found.");
-
-					// ensure value is of correct type
-	                var value = Convert.ChangeType(property.GetValue(Instance, null), propertyFromDestination.PropertyType);
-
-                    propertyFromDestination.SetValue(destinationInstance, value, null);
+                    throw new SettingsPropertyNotFoundException(
+                        $"No property with name '{expectedPropertyName}' found.");
                 }
-                catch (Exception ex)
-                {
-                    Runtime.MessageCollector?.AddExceptionMessage($"Error saving default connectioninfo property {property.Name}", ex);
-                }
+
+                // ensure value is of correct type
+                object? value = Convert.ChangeType(
+                    property.GetValue(Instance, null),
+                    propertyFromDestination.PropertyType,
+                    CultureInfo.InvariantCulture);
+
+                propertyFromDestination.SetValue(destinationInstance, value, null);
+            }
+            catch (Exception ex)
+            {
+                Runtime.MessageCollector?.AddExceptionMessage(
+                    $"Error saving default connectioninfo property {property.Name}",
+                    ex);
             }
         }
     }

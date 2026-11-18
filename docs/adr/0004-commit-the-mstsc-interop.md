@@ -1,5 +1,6 @@
 ---
 date: 2026-09-22
+status: accepted
 ---
 
 # Commit the MSTSCLib interop assemblies instead of generating them
@@ -11,7 +12,8 @@ binaries is the kind of thing a reviewer flags on sight, so: it is deliberate.
 
 MSBuild's `ResolveComReference` task **does not exist in the .NET Core build of MSBuild**. With
 `<COMReference>` in the project, `dotnet build` fails outright with MSB4803 — and because
-`dotnet test` transitively builds `mRemoteV1`, the entire test suite becomes unrunnable without
+`dotnet test` transitively builds the application (`mRemoteV1` then, `src/mRemoteUG` since
+[ADR-0024](0024-rename-to-mremoteug.md)), the entire test suite becomes unrunnable without
 Visual Studio's MSBuild. Upstream lives with that; this fork will not, because building and
 testing from the command line is what makes it maintainable by one person on any machine.
 

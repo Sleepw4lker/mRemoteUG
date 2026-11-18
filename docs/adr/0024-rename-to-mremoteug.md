@@ -1,5 +1,6 @@
 ---
 date: 2026-09-24
+status: accepted
 ---
 
 # Take the name mRemoteUG, and move the projects under `src/`
@@ -22,8 +23,9 @@ The directory layout moved in the same pass: `mRemoteV1` → `src/mRemoteUG`, `m
 version number from a product that is now at 2.1.
 
 **The solution file stays at the repository root**, and that is load-bearing rather than
-cosmetic. The `.wixproj` and four `.wxs` files resolve the harvest path, the pandoc invocation,
-the post-build script and the main executable through `$(SolutionDir)` / `$(var.SolutionDir)`,
+cosmetic. The `.wixproj` and three `.wxs` files resolve the harvest path, the pandoc invocation,
+the post-build step (a script then, an MSBuild target in the `.wixproj` now), the custom-action
+DLL, the text files and the main executable through `$(SolutionDir)` / `$(var.SolutionDir)`,
 and building the `.wixproj` on its own already fails with WIX0150 because that variable is only
 defined by a solution build. Moving the solution would have relocated all of them silently.
 
@@ -59,7 +61,8 @@ this package *was* mRemoteNG and is not defensible now.
 `SettingsFileInfo.SettingsPath` and `Logger.BuildLogFilePath` both derive from
 `Application.ProductName`, so renaming `AssemblyProduct` moved the settings, the connection file
 and the log from `%APPDATA%\mRemoteNG\` to `%APPDATA%\mRemoteUG\` with no code change and no
-migration.
+migration. (Since [ADR-0034](0034-log-outside-the-roaming-profile.md) the log is under
+`%LOCALAPPDATA%\mRemoteUG\` instead; the settings and the connection file stayed.)
 
 Migration code was considered and rejected. Nothing has been published under either name, so the
 only affected profile is the author's; a copy-on-first-run path would have been permanent code
@@ -104,3 +107,6 @@ says the fork's name, its maintainer and its lineage, with the third-party notic
 expander; `CREDITS.TXT` gained a header saying the same and lost only the entries for components
 this fork no longer ships. `AboutTextTests` asserts the original authors are still named, so a
 later edit to the copyright string cannot quietly drop them.
+
+*History: written 2026-09-24; corrected 2026-10-07 - three `.wxs` files use `var.SolutionDir`,
+not four, and the post-build script is now an MSBuild target.*

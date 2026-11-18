@@ -29,7 +29,7 @@
       github.com, so the package is the only route to the art that works offline of GitHub
       (ADR-0013).
     -->
-    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="5.0.0" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" />
 
     <!--
       Rasterizer. Only SKPath.ParseSvgPathData is used, not an SVG DOM: measured over all 20392
@@ -37,7 +37,7 @@
       appears on 1.1% of paths and `stroke` on exactly one - so a path renderer is the whole job
       and the outliers are rejected by name in Validate rather than half-rendered.
     -->
-    <PackageReference Include="SkiaSharp" Version="3.119.0" />
+    <PackageReference Include="SkiaSharp" />
   </ItemGroup>
 
 </Project>

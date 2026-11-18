@@ -1,6 +1,6 @@
 ---
 date: 2026-09-30
-status: proposed
+status: accepted
 ---
 
 # Retry the PuTTY chrome strip once, after reading the result back

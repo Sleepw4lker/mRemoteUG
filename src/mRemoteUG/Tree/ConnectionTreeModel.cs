@@ -1,71 +1,82 @@
-﻿using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+
 using mRemoteUG.Connection;
 using mRemoteUG.Container;
 using mRemoteUG.Tree.Root;
 
 
-namespace mRemoteUG.Tree
+namespace mRemoteUG.Tree;
+
+public sealed class ConnectionTreeModel : INotifyCollectionChanged, INotifyPropertyChanged
 {
-    public sealed class ConnectionTreeModel : INotifyCollectionChanged, INotifyPropertyChanged
+    public List<ContainerInfo> RootNodes { get; } = new List<ContainerInfo>();
+
+    public void AddRootNode(ContainerInfo rootNode)
     {
-        public List<ContainerInfo> RootNodes { get; } = new List<ContainerInfo>();
-
-        public void AddRootNode(ContainerInfo rootNode)
+        if (RootNodes.Contains(rootNode))
         {
-            if (RootNodes.Contains(rootNode)) return;
-            RootNodes.Add(rootNode);
-            rootNode.CollectionChanged += RaiseCollectionChangedEvent;
-            rootNode.PropertyChanged += RaisePropertyChangedEvent;
-            RaiseCollectionChangedEvent(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, rootNode));
+            return;
         }
 
+        RootNodes.Add(rootNode);
+        rootNode.CollectionChanged += RaiseCollectionChangedEvent;
+        rootNode.PropertyChanged += RaisePropertyChangedEvent;
+        RaiseCollectionChangedEvent(
+            this,
+            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, rootNode));
+    }
 
-        public IReadOnlyList<ConnectionInfo> GetRecursiveChildList()
+
+    public IReadOnlyList<ConnectionInfo> GetRecursiveChildList()
+    {
+        var list = new List<ConnectionInfo>();
+        foreach (ContainerInfo rootNode in RootNodes)
         {
-            var list = new List<ConnectionInfo>();
-            foreach (var rootNode in RootNodes)
-            {
-                list.AddRange(GetRecursiveChildList(rootNode));
-            }
-            return list;
+            list.AddRange(GetRecursiveChildList(rootNode));
+        }
+        return list;
+    }
+
+    public static IEnumerable<ConnectionInfo> GetRecursiveChildList(ContainerInfo container)
+    {
+        return container.GetRecursiveChildList();
+    }
+
+    public static void RenameNode(ConnectionInfo connectionInfo, string? newName)
+    {
+        if (newName == null || newName.Length <= 0)
+        {
+            return;
         }
 
-        public IEnumerable<ConnectionInfo> GetRecursiveChildList(ContainerInfo container)
+        connectionInfo.Name = newName;
+        if (Settings.Default.SetHostnameLikeDisplayName)
         {
-            return container.GetRecursiveChildList();
+            connectionInfo.Hostname = newName;
+        }
+    }
+
+    public static void DeleteNode(ConnectionInfo? connectionInfo)
+    {
+        if (connectionInfo is RootNodeInfo)
+        {
+            return;
         }
 
-        public void RenameNode(ConnectionInfo connectionInfo, string newName)
-        {
-            if (newName == null || newName.Length <= 0)
-                return;
+        connectionInfo?.RemoveParent();
+    }
 
-            connectionInfo.Name = newName;
-            if (Settings.Default.SetHostnameLikeDisplayName)
-                connectionInfo.Hostname = newName;
-        }
+    public event NotifyCollectionChangedEventHandler? CollectionChanged;
+    private void RaiseCollectionChangedEvent(object? sender, NotifyCollectionChangedEventArgs args)
+    {
+        CollectionChanged?.Invoke(sender, args);
+    }
 
-        public void DeleteNode(ConnectionInfo connectionInfo)
-        {
-            if (connectionInfo is RootNodeInfo)
-                return;
-            
-            connectionInfo?.RemoveParent();
-        }
+    public event PropertyChangedEventHandler? PropertyChanged;
 
-        public event NotifyCollectionChangedEventHandler CollectionChanged;
-        private void RaiseCollectionChangedEvent(object? sender, NotifyCollectionChangedEventArgs args)
-        {
-            CollectionChanged?.Invoke(sender, args);
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        private void RaisePropertyChangedEvent(object? sender, PropertyChangedEventArgs args)
-        {
-            PropertyChanged?.Invoke(sender, args);
-        }
+    private void RaisePropertyChangedEvent(object? sender, PropertyChangedEventArgs args)
+    {
+        PropertyChanged?.Invoke(sender, args);
     }
 }

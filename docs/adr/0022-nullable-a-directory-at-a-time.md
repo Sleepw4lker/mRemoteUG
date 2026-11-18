@@ -1,5 +1,6 @@
 ---
 date: 2026-09-24
+status: accepted
 ---
 
 # Enable nullable reference types a directory at a time, with the build as the ratchet
@@ -32,7 +33,7 @@ honest answer to "how much is left", and it counts the work that is invisible to
 because the files that would report it are not enabled yet:
 
 ```
-dotnet build mRemoteV1.slnx -t:Rebuild -p:Nullable=enable -p:WarningsAsErrors= \
+dotnet build mRemoteUG.slnx -t:Rebuild -p:Nullable=enable -p:WarningsAsErrors= \
   -p:TreatWarningsAsErrors=false -p:BaseOutputPath=<scratch>\shadow-bin\ -nologo -v:n
 ```
 
@@ -77,11 +78,11 @@ connection record corrected first, the analyzer points at it.
 
 `Directory.Build.props` also sets `<WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>`.
 
-There is no CI in this repository — no workflow files, and verification is local per ADR-0013 — so
-the build is the only thing that can hold a line. Without it, a file that was cleaned in one commit
-silently regresses in the next. With it, "it built" means "every enabled file is clean", and a
-contract corrected late that breaks an already-enabled file fails **the commit that caused it**
-rather than surfacing at the end.
+There was no CI in this repository when this was written — no workflow files, and verification
+was local per ADR-0013 (see the amendment below) — so the build is the only thing that can hold a
+line. Without it, a file that was cleaned in one commit silently regresses in the next. With it,
+"it built" means "every enabled file is clean", and a contract corrected late that breaks an
+already-enabled file fails **the commit that caused it** rather than surfacing at the end.
 
 The cost is real and worth stating: the property is unscoped, and `global.json` pins the SDK with
 `rollForward: latestFeature`. A future feature band that adds or widens a nullable warning turns a
@@ -177,3 +178,10 @@ and the XML and CSV schemas, whose property names are string literals — the CS
 hard-coded semicolon-delimited lists kept in step by hand. `ConnectionInfo`'s own exclusion list
 still named two properties that had ceased to exist. Annotating the record is necessary and not
 sufficient, and in those three places only a test can tell you anything.
+
+*History: written 2026-09-24; corrected 2026-10-07 - the shadow-build command names the solution
+`mRemoteUG.slnx` after ADR-0024, and "there is no CI" is marked as at the time.*
+
+*Completed 2026-11-10 (#68): the shadow build reached 0, `Directory.Build.props` sets
+`<Nullable>enable</Nullable>`, and the per-file `#nullable enable` lines are gone.
+`WarningsAsErrors=nullable` stays.*

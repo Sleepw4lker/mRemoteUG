@@ -1,3 +1,5 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
     Regenerates ThirdParty\Interop\{Interop,AxInterop}.MSTSCLib.dll from the
@@ -29,28 +31,44 @@
     Generates against a net10.0-windows project so the wrappers are produced by
     the same toolchain the app is built with.
 #>
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '',
+    Justification = 'interactive developer tool, the console output is for the person running it')]
 [CmdletBinding()]
-param(
-    [string] $OutputDirectory = (Join-Path $PSScriptRoot '..\ThirdParty\Interop')
+param (
+    # Where the two interop assemblies are written. Defaults to ThirdParty\Interop in this working tree.
+    [string] $OutputDirectory = (Join-Path -Path $PSScriptRoot -ChildPath '..\ThirdParty\Interop')
 )
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Find-MSBuild {
-    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-    if (-not (Test-Path $vswhere)) {
-        throw "vswhere.exe not found. Visual Studio (or Build Tools) is required to regenerate the interop assemblies."
+    <#
+    .SYNOPSIS
+        Finds the .NET Framework MSBuild.exe of an installed Visual Studio or Build Tools through vswhere.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param ()
+
+    $vswhere = Join-Path -Path ${env:ProgramFiles(x86)} -ChildPath 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (-not (Test-Path -LiteralPath $vswhere)) {
+        throw ('vswhere.exe not found. Visual Studio (or Build Tools) is required to regenerate the ' +
+            'interop assemblies.')
     }
-    $msbuild = & $vswhere -all -products * -requires Microsoft.Component.MSBuild `
-                          -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
-    if (-not $msbuild) { throw "MSBuild.exe not found via vswhere." }
+    $query = @(
+        '-all', '-products', '*', '-requires', 'Microsoft.Component.MSBuild', '-find', 'MSBuild\**\Bin\MSBuild.exe'
+    )
+    $msbuild = & $vswhere @query | Select-Object -First 1
+    if (-not $msbuild) { throw 'MSBuild.exe not found via vswhere.' }
     return $msbuild
 }
 
 $msbuild = Find-MSBuild
 Write-Host "Using MSBuild: $msbuild"
 
-$work = Join-Path ([System.IO.Path]::GetTempPath()) ("mstsc-interop-" + [Guid]::NewGuid().ToString('N'))
+$workName = 'mstsc-interop-' + [Guid]::NewGuid().ToString('N')
+$work = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath $workName
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
     # A throwaway project whose only purpose is to make ResolveComReference run.
@@ -83,32 +101,33 @@ try {
     </COMReference>
   </ItemGroup>
 </Project>
-'@ | Set-Content -Path (Join-Path $work 'InteropGen.csproj') -Encoding UTF8
+'@ | Set-Content -LiteralPath (Join-Path -Path $work -ChildPath 'InteropGen.csproj') -Encoding UTF8
 
-    Push-Location $work
+    Push-Location -LiteralPath $work
     try {
-        & $msbuild 'InteropGen.csproj' -t:Restore,Build -p:Configuration=Release -v:minimal -nologo
+        & $msbuild 'InteropGen.csproj' '-t:Restore,Build' -p:Configuration=Release -v:minimal -nologo
         if ($LASTEXITCODE -ne 0) { throw "MSBuild failed with exit code $LASTEXITCODE." }
-    }
-    finally { Pop-Location }
+    } finally { Pop-Location }
 
-    $generated = Join-Path $work 'obj\Release\net10.0-windows'
+    $generated = Join-Path -Path $work -ChildPath 'obj\Release\net10.0-windows'
     $wanted = @('Interop.MSTSCLib.dll', 'AxInterop.MSTSCLib.dll')
 
-    if (-not (Test-Path $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory | Out-Null }
+    if (-not (Test-Path -LiteralPath $OutputDirectory)) {
+        $null = New-Item -ItemType Directory -Path $OutputDirectory
+    }
 
     foreach ($name in $wanted) {
-        $src = Join-Path $generated $name
-        if (-not (Test-Path $src)) { throw "Expected generated assembly not found: $src" }
-        Copy-Item $src -Destination (Join-Path $OutputDirectory $name) -Force
-        $hash = (Get-FileHash (Join-Path $OutputDirectory $name) -Algorithm SHA256).Hash
+        $src = Join-Path -Path $generated -ChildPath $name
+        if (-not (Test-Path -LiteralPath $src)) { throw "Expected generated assembly not found: $src" }
+        $destination = Join-Path -Path $OutputDirectory -ChildPath $name
+        Copy-Item -LiteralPath $src -Destination $destination -Force
+        $hash = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash
         Write-Host ("  {0,-26} {1}" -f $name, $hash)
     }
 
-    Write-Host ""
-    Write-Host "Done. Now run the interop guard tests:" -ForegroundColor Green
-    Write-Host "  dotnet test src/mRemoteUG.Tests --filter AxInteropSurface"
-}
-finally {
-    Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host ''
+    Write-Host 'Done. Now run the interop guard tests:' -ForegroundColor Green
+    Write-Host '  dotnet test --project src/mRemoteUG.Tests --filter AxInteropSurface'
+} finally {
+    Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 }

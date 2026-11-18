@@ -407,6 +407,21 @@ them eliminated:
 3. **`Control.DeviceDpi` on the hosted `AxHost` reads 96 that early**, in which case both passes
    asked for `desktopScaleFactor 100` and correctly did nothing.
 
+   **Observed since, consistent with candidate 2 (2026-11-18, #246):** after an undock from 200%
+   to 150% with an automatic reconnect, the only request carrying `desktopScaleFactor 150` also
+   carried the session's unchanged 3462x1915, and the text stayed at 200%. Docking back sent new
+   sizes together with the new scale, and that took. Not a test of candidate 2: the size was wrong
+   too, and the fix sends size and scale together, so the next undock says no more than whether
+   that works.
+
+   **Measured since, in a related form (2026-11-17):** `DeviceDpi` is a cache, updated only by
+   DPI-change messages. The process started at 144 DPI, the window was then docked to a 192 DPI
+   monitor, and a session opened afterwards read **144** from its new hosted control. It was
+   declared, created and rescaled at 150% on a 200% screen. Every DPI read in `RdpProtocol` now
+   asks Windows with `GetDpiForWindow` (`DpiScaling.WindowDpi`), and the pre-connect line logs the
+   cached value alongside. `--selftest` ("Window DPI") makes the cache stale on purpose and checks
+   the answer.
+
 If it ever needs reopening: `Display scale [<session>]: <pass> pass at <n> DPI` names the pass and
 the DPI it used, and `asked the session for WxH at n DPI (desktopScaleFactor ...)` says what went
 out. Both are `DebugMsg`, and **debug is off by default** (ADR-0017) - the failing round above
@@ -429,7 +444,97 @@ which is why this is measurable on a machine with no route to a server at all:
   `AxInteropSurfaceTests.TheExtendedSettingsBagTakesItsValueByReference`.
 
 An unknown name in that bag throws, which is the whole reason the restraint above
-`SetRedirection` exists; ADR-0028 proposes spending it on these two names and no others.
+`SetRedirection` exists; ADR-0028 spends it on these two names and no others.
+
+#### `DesktopWidth`/`DesktopHeight` lag behind `UpdateSessionDisplaySettings` - measured
+
+They report the size the session has *taken*, not the size it was last *asked for*, and the
+difference lasts hundreds of milliseconds. Measured on mstscax 10.0.26100, from a `--verbose`
+log of a laptop docked from a 150% panel to a 200% monitor. Times are seconds into the minute:
+
+| Time | Request | Size |
+|---|---|---|
+| 55.388 | resize | 3604x1940 |
+| 55.871 | resize | 3604x1929 |
+| 56.094 | resize | 4364x2254 |
+| 56.103 | `DesktopWidth`/`DesktopHeight` read | **3604x1940** |
+
+That is two requests behind, and about 700 ms after the one it reported. So these properties cannot
+be read as the size a session is about to have. A pass that sent them as such, the `DpiChanged`
+rescale, took the session back to a stale size and left it smaller than its Tab
+([ADR-0028](adr/0028-declare-the-display-scale-before-connecting.md), amendment of 2026-11-17).
+Whether they ever catch up with the last request was not measured: the log has no later read.
+
+#### Anchored controls in a connection window outgrow it on a DPI change - measured
+
+On the same dock, once the stale pass above was fixed, the session was sized to **4425x2254 on a
+3840x2160 monitor**, and the remote desktop was cut off at the right and bottom. The
+`Hosted control [...] is now WxH` Debug line showed where that size came from. At 200%:
+
+| | Size |
+|---|---|
+| connection window client | 3575x1971 |
+| its tab page | **4428x2266** |
+| interface control / RDP control | 4425x2254 |
+
+The connection window had the right size, but the tab control inside it did not. It had grown about
+1.22x wide and 1.17x tall from its size at 150%, which is the ratio of the 12pt to the 9pt font and
+not the DPI ratio. `ConnectionWindow` scales by font, and its tab control was placed by **anchors**,
+so the font change of the DPI follow-up scaled it past the window it sits in, and nothing brought it
+back. The `InterfaceControl` inside each tab was anchored the same way. A font change alone left it
+2x12 pixels short of its tab page (`ConnectionWindowFontScalingTests`, red before the fix), and in
+`--selftest` it was 3x23 short.
+
+Both are now docked to fill (`DockStyle.Fill`), and every link in the chain matches exactly.
+
+What is **not** reproduced here is the overflow itself. Neither a font change on an embedded
+connection window nor `--selftest`'s forced DPI messages ("DPI change on a hosted RDP control")
+made the anchored tab control larger than its window. The real monitor move adds something those
+leave out. Docking removes the anchors any such scaling acts on, so the fix does not depend on
+knowing what that is; the next dock with `--verbose` is the proof.
+
+What guards it, and how far:
+
+- `ConnectionWindowFontScalingTests` asserts the session panel *equals* its tab page and the tab
+  control fills the window, after a font change in both directions.
+- The self-test check asserts every link from the main window down as an equality: the connection
+  window fills its document page, the tab control the connection window, the session panel its tab
+  page, the RDP control the session panel, and the RDP control's own window matches the size it
+  reports. It also asserts that the main window took the suggested rectangle, so that each of its
+  two scenarios ("window grows", "window keeps its size") ran as labelled, and it runs the main
+  window's posted DPI follow-up, which re-measures the tab strip. Each assertion failed against a
+  deliberately broken build: the session panel anchored again, the tab control anchored again, and
+  the main window started larger than the screen.
+- Neither connects, so neither reaches the session resize itself; the check says so in its report.
+  That a size change of the hosted control is handed to the resize is pinned by
+  `ProtocolBaseHostedControlSizingTests`.
+
+Until 2026-11-18 the self-test check guarded less than this section said. It asserted only that
+the RDP control was *no larger* than its tab page, which passes for a panel a few pixels short, and
+its main window started at 1600x1000. Windows keeps a window within the screen, so the window that
+was meant to grow could not: on the CI runner's 1024x768 placeholder display both scenarios printed
+the same numbers, and on a 1722x1011 display it was asked for 2162x1385 and got 1748x1039. It now
+starts at three fifths of the work area. And it never ran the DPI follow-up, because it has no
+`FrmMain`; the follow-up's sweep is now `FrmMain.FollowDpiChangeIn`, which the check posts from
+its stand-in's `DpiChanged` the way `FrmMain` does.
+
+**A session must follow its hosted control, not only the connection window.** Measured on the next
+dock, with the layout docked: the resize sent 3572x1927. Then the DPI follow-up re-measured the tab
+strip for the 12pt font, 12 px taller, and the hosted control went to 3573x1915 while the connection
+window kept its 3581x1971. Sessions followed only the connection window's `Resize`, so nothing was
+sent, and mstscax showed scrollbars for the 12 px. The hosted control's own `SizeChanged` now
+resizes the session too, posted so that the in-between sizes of one DPI change (4723x2467 and
+3858x2142 in that log) collapse into the size it settles at.
+
+PuTTY had the same gap, and was fixed later. It has no hosted control, and the `Resize` it makes on the DPI change
+runs before the tab strip is re-measured, so it kept the panel size from before:
+24 px too tall in `PuttyBaseFollowsItsTabTests` (9pt to 12pt at 96 DPI). `PuttyBase` now follows
+the `InterfaceControl`'s own `SizeChanged` the same way, posted, left to the connection window
+during a drag and caught up at `ResizeEnd`. Not yet confirmed by a lab dock.
+
+Possibly the same cause: the PuTTY undock report below (sessions at about two thirds of their
+panel after 200% to 150%) is this mechanism in reverse. The asymmetry recorded there, with existing
+sessions unaffected, is not explained by it, so this is a lead, not a finding.
 
 ### .NET 10 ignores bounds assignments on an in-place AxHost
 
@@ -485,6 +590,96 @@ was drawn inside the tab.
   the maximize once — not `SetParent`, which only runs once and is not exposed to the race again.
   Re-running the same harness with the retry in place: 0/150. See
   [ADR-0031](adr/0031-retry-the-putty-chrome-strip-once.md) (proposed).
+
+### Focusing a hosted PuTTY during an activation takes the foreground from the click
+
+Measured in the lab with build 2.1.1.429 and `--verbose` (#269). Activating the main window
+from another program delivers `WM_WINDOWPOSCHANGED`, then `WM_ACTIVATEAPP`, then
+`WM_ACTIVATE` - `WA_CLICKACTIVE` for a click, `WA_ACTIVE` otherwise. Before them, a
+`WM_MOUSEACTIVATE` reaches the main window for a click on the Tab strip, the connection tree or
+the frame, but **never for a click on the menu bar (`msMain`)**: the strip answers it itself.
+`WM_WINDOWPOSCHANGED` therefore cannot tell a click on the menu bar from Alt+Tab.
+
+It used to focus the selected session there. For a hosted PuTTY that is `SetForegroundWindow`
+on another process's window: the main window logged `WA_INACTIVE` straight after, then the
+click activation, which ended with no focus and PuTTY in the foreground. The click was lost.
+The same click with an RDP Tab selected ends with the focus on `msMain` and the foreground in
+the main window, since the RDP control is a child window of this process.
+
+So `FrmMain` holds a PuTTY session's focus back from `WM_WINDOWPOSCHANGED` and posts it: a
+`WA_CLICKACTIVE` on a control of the main window drops it (the click decides), a
+`WA_INACTIVE` drops it, anything else lets it run once the activation is through. An RDP
+session is still focused at `WM_WINDOWPOSCHANGED`. That the three messages arrive within one
+dispatch, before the posted focus runs, is inferred from the log's order and timing (1-5 ms
+apart), not measured directly.
+
+### A hosted PuTTY never hears of a DPI change
+
+Reported on build 2.1.1.408: a PuTTY Tab opened at 150% kept 150% text after a dock to 200%,
+until reconnected (#262). Windows documents `WM_DPICHANGED` as sent to top-level windows, and a
+reparented PuTTY is not one; the report fits that, but it was not measured here (one monitor). Fixed by sending it the message ourselves
+([ADR-0044](adr/0044-tell-hosted-putty-its-dpi.md)).
+
+**Read in source** (PuTTY 0.85, `windows/window.c`; tartarus.org was not reachable from here, so
+read from the GitHub mirrors `AHinMaine/putty` and `drolevar/putty` at the `0.85` tag, commit
+`a3cce3a4`; the file is byte-identical in both):
+
+```c
+case WM_DPICHANGED:
+  wgs->dpi_info.cur_dpi.x = LOWORD(wParam);
+  wgs->dpi_info.cur_dpi.y = HIWORD(wParam);
+  wgs->dpi_info.new_wnd_rect = *(RECT*)(lParam);
+  reset_window(wgs, 3);
+```
+
+- The DPI comes from `wParam`, not `GetDpiForWindow`. `lParam` **is** dereferenced, always.
+- `reset_window(wgs, 3)` rebuilds the fonts at `cur_dpi` (`font_height = -MulDiv(height,
+  cur_dpi.y, 72)`). If the window `IsZoomed`, as `Adopt` leaves it, it returns before the RECT
+  is used: the window keeps its size and, with the default "change the number of rows and
+  columns", `term_size` fits the grid to it. Only a non-maximised PuTTY moves to the RECT.
+- Nothing else re-reads the DPI. `init_dpi_info` runs once at startup and only while `cur_dpi`
+  is 0, so `IDM_RECONF` (Change Settings) does not pick a new DPI up either.
+
+**Measured** with a throwaway probe (not in the repo) against the real PuTTY 0.85, telnet to a
+loopback listener that reads PuTTY's NAWS (columns x rows), hosted as `Adopt` hosts it, in a
+1400x900 panel, 192 DPI machine:
+
+| Sent | Terminal (NAWS) | Window in panel |
+|---|---|---|
+| none (started at 192) | 85x29 | 0,0 1400x900, zoomed, no caption |
+| `WM_DPICHANGED` 144 | 113x40 | unchanged |
+| 192 | 85x29 | unchanged |
+| 144, then 192 again | 113x40, 85x29 | unchanged |
+
+85/113 is 0.75 = 144/192: the font follows the DPI, and the window stays put. Screenshots showed
+the same 40-character line at 480 and 640 pixels. A later `MoveWindow` kept the new font (72x26
+in 1200x800 at 192). `SendMessageTimeout` returned in 1–2 ms.
+
+**The RECT is marshalled into PuTTY's process.** Measured three ways:
+
+- A *non-maximised* PuTTY, sent the RECT `333,177` from our process, moved to exactly `333,177`.
+  It read our values, not whatever lives at that address in its own memory.
+- An `lParam` of `0x10`: `SendMessageTimeout` failed in the sender (returned 0), PuTTY carried
+  on untouched. The copy is made on our side, before PuTTY runs.
+- `PostMessage(WM_DPICHANGED)` fails with `ERROR_MESSAGE_SYNC_ONLY` (1159), which user32 reserves
+  for messages whose pointer parameters it copies. (`SendNotifyMessage` returned false with
+  last error 0; not explained.)
+
+Assumed, not measured: that every Windows build marshals it. Only this machine's build was probed;
+`--selftest`'s "PuTTY hosting" check sends 3/4 the DPI and back to a hosted PuTTY and fails if it
+exits or leaves its place, so a build that stopped copying the RECT would show there. Not
+measured: a real dock, PuTTYNG (sent the same message, untested), and a hung PuTTY (the send uses
+`SMTO_ABORTIFHUNG` with a 1 s timeout).
+
+**NETworkManager does the same** (PR #3352, merged 2026-03-04, still on its `main`):
+`TrySendDpiChangedMessage` allocates the RECT in its own process with `Marshal.AllocHGlobal`
+and calls plain `SendMessage(hWnd, WM_DPICHANGED, wParam, lParam)`. It does not address the
+pointer question; it relies on the same marshalling. It also sends one right after embedding
+when PuTTY's `GetDpiForWindow` before `SetParent` differs from the panel's. That is not done
+here, and might bear on the undock report below.
+
+A PuTTY exiting with code 0 while the self-test sent it the message was a closed connection, not
+the message: the keyboard check before it closes the raw connection, and PuTTY exits with it.
 
 ### Undocking to a different-DPI monitor — reported, not yet measured
 
@@ -549,6 +744,14 @@ ShimGen shim (`is gui? True, wait for exit? False`): it starts the real binary u
 shim never finds a window and `Exited` fires at once. `PuttyPathProvider` finds the shim first
 because it is on PATH; point `CustomPuttyPath` at the real executable
 (`putty.exe --shimgen-noop` prints it).
+
+- **The PuTTY the shim starts is out of reach.** Once the shim has exited, the session holds a
+  `Process` for the shim only; `CleanupProtocolResources` kills that one if it is still running,
+  so a failed connect left the real PuTTY open, logged in with `-l`/`-pw` (#250). The shim is now
+  refused by `PuttyPathProvider.GetUnusableReason` before anything starts, using the same
+  version-resource check as the self-test (`IsLauncherShim`). The target path is embedded in the
+  shim as a UTF-16 string relative to the shim's folder (`..\\lib\putty.portable\tools\PUTTY.EXE`
+  here), but the format is ShimGen's and undocumented, so it is not parsed.
 
 ### PuTTY Profiles and the registry notification
 
@@ -678,6 +881,31 @@ band across a dark window, and no amount of work inside `DrawItem` reaches it.
   `SystemColors.Control` are both `#F0F0F0`, so asserting the band *is* `Control` passes just as
   well against the defect.
 
+**How comctl32 sizes an owner-drawn Tab in `SizeMode.Normal`, measured for #261** (9pt and 18pt
+Segoe UI, against `GetTextExtentPoint32` and `TextRenderer`):
+
+- **Width = the GDI text extent of `TabPage.Text` + `Padding.X` on each side, and nothing
+  else** - but never less than a minimum that grows with the font and the padding (84 px at 9pt
+  with a 24 px padding, 174 at 18pt with 36), so a very short title gets spare room. No prefix processing: `"A&&B"` is measured as four characters, so a doubled
+  ampersand leaves a gap of one `&` in a Tab the owner-draw shows `"A&B"` in.
+  `TextRenderer.MeasureText` with `NoPadding | NoPrefix | SingleLine` gives the same extent to
+  the pixel; without `NoPadding` it is wider, and text drawn with its default margins into the
+  native rectangle gets cut.
+- **`TabControl.Padding` recreates the window when assigned after the handle exists** - the
+  handle changed on the assignment. With sessions hosted in the pages that is the teardown
+  [ADR-0005](adr/0005-park-rdp-controls-before-disposing.md) keeps away from a live RDP control.
+  `TCM_SETPADDING` sent directly keeps the handle, which is what `SessionTabControl.ItemPadding`
+  does.
+- **`TCM_SETPADDING` does not re-measure anything.** Every Tab kept its width until an item was
+  set; setting any one Tab's `Text`, **even to the value it already had**, re-measured all of
+  them. A font change re-measures by itself.
+- **`ItemSize` with a width of 0 sets only the height** in `Normal` mode, and does not recreate
+  the window.
+
+So the connection window sends the padding, then assigns every Tab's display text again, on each
+DPI change through either route and on every font change of the strip.
+`ConnectionWindowTabWidthTests` compares every Tab after a driven DPI change with a Tab opened at
+the new DPI.
 
 **`TabPageCollection.Remove` and `Insert` each leave a window where the native tab control and
 the managed page list disagree by one.** `RemoveTabPage` drops the page from the managed list
@@ -880,6 +1108,20 @@ wrong answer is a plausible-looking string, not an error.
   `BeforeTargets="Build"` target compute `$(FileVersion)` and an `AfterTargets="Build"` target use
   it to name a file. It is *not* visible at property-evaluation time, so it cannot feed
   `OutputName` or anything else read before any target runs.
+- **With assembly info generation on, the SDK emits `SupportedOSPlatform("Windows7.0")` from the
+  TFM, and CA1416 goes by it over a hand-written floor.** The attribute allows several, so a
+  hand-written `windows10.0.22000.0` beside it raised no CS0579; measured 2026-10-07 with a
+  throwaway call to an API needing Windows 10 19041: "reachable on: 'windows' 7.0 and later".
+  `GenerateSupportedOSPlatformAttribute` (and `GenerateTargetPlatformAttribute`) set to `false`
+  restores it: the 19041 call goes silent and one needing 26100 warns against "10.0.22000.0 and
+  later". Neither switch is among the `GenerateAssembly*Attribute` properties, so narrowing
+  generation by that list leaves both on.
+- **`git describe --match "v[0-9]*.[0-9]*.[0-9]*"` matches a pre-release tag.** The pattern is a
+  glob and its last `*` takes anything, so `v2.2.0-rc.1` passes it; measured 2026-10-07 in a
+  scratch repository with `v2.1.0` and, a commit later, `v2.2.0-rc.1`: describe answered
+  `v2.2.0-rc.1-1-g...`. `ComputeVersionFromGit` cannot parse that and fell back to the seed,
+  `2.1.0`, without a warning. `--exclude "*-*"` makes describe skip it and answer
+  `v2.1.0-2-g...`. See [ADR-0030](adr/0030-derive-the-version-from-git-tags.md).
 
 ---
 
@@ -979,6 +1221,35 @@ machine it was built on — see [ADR-0016](adr/0016-wix-5-and-the-desktop-runtim
   signer mutates the intermediate as well; a signer that writes a staged copy and moves it over
   the destination breaks the link and leaves `obj` alone. CI does the latter.
 
+- **An upgrade scheduled `afterInstallExecute` keeps any file whose version did not rise.** The
+  new files go in over the old installation and `RemoveExistingProducts` runs afterwards, so
+  Windows Installer's file-versioning rules decide per file, and a versioned file is replaced only
+  by a higher version. The interop assemblies are `1.0.0.0` in every build, so they were never
+  replaced: observed 2026-10-07, unsigned interop DLLs from an earlier unsigned build were still
+  installed after the upgrade to the signed v2.1.0, while `mRemoteUG.exe` and `mRemoteUG.dll` -
+  whose version moves with every build - were replaced. Read from the built package's
+  `InstallExecuteSequence`: `InstallFiles` 4000, `RemoveExistingProducts` 6501. With
+  `Schedule="afterInstallInitialize"` it reads `InstallInitialize` 1500,
+  `RemoveExistingProducts` 1501, `InstallFiles` 4000: the old product is gone before a file is
+  copied, so every file is installed fresh. The schedule was inherited from upstream, not chosen.
+- **HEAT5151 under `dotnet build` is heat's registry harvesting, and it can never work there.**
+  `dotnet build` runs the `net6.0` heat (`dotnet exec …\tools\net6.0\heat.dll`, from the build
+  log), and for every `.dll` and `.exe` registry harvesting tries a reflection-only load to read
+  the registry entries regasm would write. .NET does not support that load, so each assembly
+  warned "Operation is not supported on this platform" and contributed nothing. `heat -sreg`
+  (`SuppressRegistry="true"` on the `HarvestDirectory` item) clears all five; `-scom` alone does
+  not. Measured 2026-11-09: the harvested `_MandatoryComponents_dir.wxs` is byte-identical with
+  and without `-sreg`, so the package built from it is too.
+- **WIX5437: `ProgramFiles64Folder` is a `StandardDirectory`, and that changes one cell.** A
+  `<Directory Id="ProgramFiles64Folder">` written out by hand got `DefaultDir` `.`; the
+  `StandardDirectory` WiX 5 asks for gets WiX's own `PFiles64`. Measured 2026-11-09 by costing
+  both packages in-process through `WindowsInstaller.Installer` (`CostInitialize`, `FileCost`,
+  `CostFinalize`, no install): every directory resolves to the same target, `INSTALLDIR`
+  `C:\Program Files\mRemoteUG\`. `DefaultDir` of a system folder is only the source-side name,
+  and the package is compressed with its cab embedded, so only an administrative image
+  (`msiexec /a`, not run here) would lay its files out under `PFiles64\mRemoteUG` rather than
+  `mRemoteUG`.
+
 ---
 
 ## Code signing
@@ -1017,14 +1288,26 @@ the certificate.
   machine does not trust**, with `StatusMessage` "A certificate chain processed, but terminated in
   a root certificate which is not trusted by the trust provider". The file is signed and the
   signer certificate is readable; only the chain is the problem, and the problem is the machine's.
-  So a CI check must pass on a *present* signature and fail on `NotSigned` or `HashMismatch`;
-  requiring `Valid` fails on any runner whose trust store lacks the issuing CA.
+  That was measured with a stand-in certificate. With the real one the runner reports `Valid` for every signed file, timestamped (observed
+  2026-10-07), so the CI check now requires `Valid`, the expected signer's thumbprint and a
+  timestamp. A runner whose trust store lacked the root would fail it; that is the runner to fix.
 - **What the package carries is whatever is on disk when the wixproj compiles.** Verified by
   reading the built MSI's `File` table through `WindowsInstaller.Installer`: after signing the
   payload, the recorded `FileSize` for `mRemoteUG.exe` read 175000 against 173568 unsigned, and
   `mRemoteUG.dll` 1056664 against 1055232, while `Serilog.dll` - deliberately left alone - still
   read 163840. Reading the `File` table is the cheap way to ask what went into a package without
   extracting the cab; `msiexec /a` for an administrative install produced nothing on this machine.
+  `Tools/verify-msi-payload.ps1` does exactly that, and CI runs it on every package.
+- **Embedding the symbols does not make the package smaller.** With `DebugType=embedded`
+  (ADR-0041) the `File` table loses `mRemoteUG.pdb` (220892 bytes) and `mRemoteUG.dll` grows from
+  1060864 to 1160704 bytes; every other row is unchanged, `mRemoteUG.exe` included - it is the
+  apphost, and the managed code and its symbols live in the DLL. Yet the MSI grew, 2039808 to
+  2052096 bytes (measured 2026-11-09, unsigned local builds): the embedded PDB is stored
+  deflate-compressed inside the DLL, so the cab compresses it worse than it did the loose file.
+- **`DebugType` given on the command line breaks the installer build.** `dotnet build mRemoteUG.slnx
+  -c "Release Installer" -p:DebugType=portable` fails with WIX0268, because a global property
+  reaches the wixproj too and `wix.exe -pdbType` accepts only `full` or `none`. Build the
+  application with the override and the wixproj on its own, as CI does.
 
 ---
 
@@ -1055,9 +1338,17 @@ it. Three things it has to get right, and only the first is obvious:
   the run, so its RESULT line existing *is* the evidence that the run reached the end. A report
   that stops mid-way means the process died during the checks, which is a real regression and the
   one thing the old exit-code test would have caught.
-- **The previous report has to be deleted before the run.** The path is fixed
-  (`%LOCALAPPDATA%\mRemoteUG\mRemoteUG-selftest.log`) and the self-hosted runner is not clean between
-  jobs, so a run that dies early otherwise gets graded against whatever passed last week.
+- **The previous report has to be deleted before the run.** The self-hosted runner is not clean
+  between jobs, so a run that dies early otherwise gets graded against whatever passed last week.
+- **Each run needs its own report and registry key.** Builds of two branches may overlap on one
+  runner, under one account. With a fixed report path and a fixed `HKCU\Software\mRemoteUG\SelfTest`
+  key, one run could delete the key the other was watching, or replace the report the other was
+  about to be graded on. So the script passes `--selftest-id <run>-<job>` (a GUID locally), and the
+  self-test names its key `HKCU\Software\mRemoteUG\SelfTest\<id>` and its report
+  `%LOCALAPPDATA%\mRemoteUG\mRemoteUG-selftest-<id>.log`. The shared `mRemoteUG.log` cannot be
+  split that way - its line format carries no process ID - so the script reads only the lines
+  stamped while its run was going; an overlapping run's exception can still land in that window,
+  which costs a misplaced warning, never a verdict.
 
 Before this, the CI step both branched on the exit code and carried `continue-on-error: true`,
 with a throw message telling the reader to ignore the value it had just branched on. It was
@@ -1114,6 +1405,8 @@ report `RESULT: PASS`.
   the 26 archives under `ReportArchive` hold only `Report.wer` — fault parameters that say no more
   than event 1026 does. Configure `LocalDumps` *before* hunting it again; a minidump would carry
   the primary exception object that the log never sees.
+- **Still dormant on 2026-10-07:** 30 more runs here, all `RESULT: PASS` with exit code 0, and
+  a CI run read back the same day, likewise. About 175 runs since 2026-09-28 without it.
 - After the fix, a recurrence documents itself: the primary lands in `mRemoteUG.log` with its
   stack, the run reports `FAIL` if it happened during the checks, and `Tools\run-selftest.ps1`
   warns off the log if it happened after them.
@@ -1124,7 +1417,7 @@ distinguishes this crash from an ordinary failure.
 
 ## Tests that pass for the wrong reason
 
-Three tests in the HiDPI and font work passed against deliberately broken code before being
+Four tests in the HiDPI and font work passed against deliberately broken code before being
 fixed. The pattern is always the same — **asserting something that is true for the wrong
 reason**:
 
@@ -1134,6 +1427,12 @@ reason**:
   because the control then simply inherits. Assert the *difference* — ratio, style, family.
 - A fixture that walks containers never reaches a `ToolStrip`, which is not a `ContainerControl`,
   whose only host is an excluded form.
+- Asserting a hosted control is *no larger* than its parent passes for one that is short of it,
+  which is half the defect. And a scenario that drives a window to a new size must assert the size
+  it got: Windows clamps a window to the screen, so a harness window larger than the screen
+  silently runs a different scenario from the one its label names. Both were in the "DPI change
+  on a hosted RDP control" self-test check (see "Anchored controls in a connection window"
+  above).
 
 **Always reintroduce the defect and watch the test fail before trusting it.** The process failure
 in the nested-submenu episode above was shipping a fix on a plausible mechanism without a red
@@ -1201,13 +1500,17 @@ nothing here touched GitHub.
   call to GitHub with a bare `fetch failed`; git in the same job honours `HTTPS_PROXY` without
   being told, `fetch` does not. With the variable set, Node logs `[UNDICI-EHPA] Warning:
   EnvHttpProxyAgent is experimental` and the call goes through - observed 2026-10-07.
-- **A release asset's `browser_download_url` answers the job token with 404.** That URL is the
-  web path `/{owner}/{repo}/releases/download/{tag}/{name}`; for the `v2.1.0` draft it
-  returned 404 to a request carrying `Authorization: token`, observed 2026-10-07. Whether that
-  is the path refusing the token header (a private repository answers 404 rather than 401) or
-  the path not serving drafts was not separated. `release.mjs` downloads from
-  `/attachments/{uuid}` instead, which every asset in the API response carries; that this path
-  takes the token is, until the next run, an inference.
+- **A draft's assets are not served to the job token; a published release's are.** Observed
+  2026-10-07 on the `v2.1.0` draft: every way of fetching its MSI with the job token answered
+  404 - `browser_download_url` (the web path `/{owner}/{repo}/releases/download/{tag}/{name}`)
+  and `/attachments/{uuid}`, each with Basic auth (`x-access-token:<token>`, how
+  `actions/checkout` presents the same token to clone) and with the `Authorization: token`
+  header. The same token read the release and its assets through the API in the same run.
+  Published, the same release went through: the real run downloaded the MSI with the job token
+  and uploaded it to GitHub. The draft was the whole cause - no second token is needed. What
+  served it was the first way tried: `/attachments/{uuid}` with Basic auth, 2097152 bytes, the
+  other two never asked. A dry run against a draft therefore reports its assets without fetching them; the checksum and the
+  signature check run on the real run.
 - **A manual run reads the workflow from the branch, and a checkout of the tag brings that
   tag's scripts.** Observed 2026-10-07: three fixes to `release.mjs` merged after `v2.1.0` was
   tagged had no effect on dispatches of `publish-github.yml`, while fixes in the workflow file

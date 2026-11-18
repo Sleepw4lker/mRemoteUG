@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text;
+
 using SkiaSharp;
 
 namespace IconGen;
@@ -41,42 +43,68 @@ public static class Emit
 
             """);
 
-        foreach (var entry in manifest.Glyphs.OrderBy(g => g.Name, StringComparer.Ordinal))
+        foreach (IconEntry? entry in manifest.Glyphs.OrderBy(g => g.Name, StringComparer.Ordinal))
         {
             if (entry.Note is { } note)
-                text.AppendLine($"        /// <summary>{Escape(note)}</summary>");
-            text.AppendLine($"        internal static Bitmap {entry.Name} => Glyphs.Get(\"{entry.Name}\", Glyphs.LogicalSize);");
+            {
+                text.AppendLine(CultureInfo.InvariantCulture, $"        /// <summary>{Escape(note)}</summary>");
+            }
+
+            text.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"        internal static Bitmap {entry.Name} => Glyphs.Get(\"{entry.Name}\", Glyphs.LogicalSize);");
         }
 
         text.AppendLine();
-        foreach (var entry in manifest.WindowIcons.OrderBy(w => w.Name, StringComparer.Ordinal))
-            text.AppendLine($"        internal static Icon {entry.Name} => WindowIcons.Get(\"{entry.Name}\");");
-
+        foreach (IconEntry? entry in manifest.WindowIcons.OrderBy(w => w.Name, StringComparer.Ordinal))
+        {
+            text.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"        internal static Icon {entry.Name} => WindowIcons.Get(\"{entry.Name}\");");
+        }
 
         text.AppendLine();
         text.AppendLine("        /// <summary>Every glyph name the manifest declares.</summary>");
         text.AppendLine("        internal static readonly string[] GlyphNames =");
         text.AppendLine("        {");
-        foreach (var entry in manifest.Glyphs.OrderBy(g => g.Name, StringComparer.Ordinal))
-            text.AppendLine($"            \"{entry.Name}\",");
+        foreach (IconEntry? entry in manifest.Glyphs.OrderBy(g => g.Name, StringComparer.Ordinal))
+        {
+            text.AppendLine(CultureInfo.InvariantCulture, $"            \"{entry.Name}\",");
+        }
+
         text.AppendLine("        };");
 
         text.AppendLine();
-        text.AppendLine("        /// <summary>Glyphs that carry meaning in their colour and are never tinted.</summary>");
+        text.AppendLine(
+            "        /// <summary>Glyphs that carry meaning in their colour and are never tinted.</summary>");
         text.AppendLine("        internal static readonly string[] FixedColourGlyphs =");
         text.AppendLine("        {");
-        foreach (var entry in manifest.Glyphs.Where(g => g.Tint is Tint.Fixed).OrderBy(g => g.Name, StringComparer.Ordinal))
-            text.AppendLine($"            \"{entry.Name}\",");
+        foreach (IconEntry? entry in manifest.Glyphs
+                     .Where(g => g.Tint is Tint.Fixed)
+                     .OrderBy(g => g.Name, StringComparer.Ordinal))
+        {
+            text.AppendLine(CultureInfo.InvariantCulture, $"            \"{entry.Name}\",");
+        }
+
         text.AppendLine("        };");
 
         text.AppendLine();
-        text.AppendLine("        /// <summary>Connection icon names from older builds, and what each heals to.</summary>");
-        text.AppendLine("        internal static readonly System.Collections.Generic.Dictionary<string, string> LegacyConnectionIcons =");
-        text.AppendLine("            new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal)");
+        text.AppendLine(
+            "        /// <summary>Connection icon names from older builds, and what each heals to.</summary>");
+        text.AppendLine(
+            "        internal static readonly System.Collections.Generic.Dictionary<string, string> " +
+            "LegacyConnectionIcons =");
+        text.AppendLine(
+            "            new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal)");
         text.AppendLine("        {");
-        foreach (var entry in manifest.ConnectionIcons.OrderBy(c => c.Name, StringComparer.Ordinal))
-            foreach (var legacy in entry.Legacy.OrderBy(l => l, StringComparer.Ordinal))
-                text.AppendLine($"            [\"{legacy}\"] = \"{entry.Name}\",");
+        foreach (IconEntry? entry in manifest.ConnectionIcons.OrderBy(c => c.Name, StringComparer.Ordinal))
+        {
+            foreach (string? legacy in entry.Legacy.OrderBy(l => l, StringComparer.Ordinal))
+            {
+                text.AppendLine(CultureInfo.InvariantCulture, $"            [\"{legacy}\"] = \"{entry.Name}\",");
+            }
+        }
+
         text.AppendLine("        };");
 
         text.Append("""
@@ -99,35 +127,40 @@ public static class Emit
     {
         const int cell = 48, icon = 32, cols = 12, pad = (cell - icon) / 2;
         var entries = manifest.All().OrderBy(e => e.Shape).ThenBy(e => e.Entry.Name, StringComparer.Ordinal).ToList();
-        var rows = (entries.Count + cols - 1) / cols;
+        int rows = (entries.Count + cols - 1) / cols;
 
         using var bitmap = new SKBitmap(cols * cell, rows * cell * 2, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(new SKColor(0xF3, 0xF3, 0xF3));
-        canvas.DrawRect(0, rows * cell, bitmap.Width, rows * cell, new SKPaint { Color = new SKColor(0x20, 0x20, 0x20) });
+        canvas.DrawRect(
+            0,
+            rows * cell,
+            bitmap.Width,
+            rows * cell,
+            new SKPaint { Color = new SKColor(0x20, 0x20, 0x20) });
 
-        for (var i = 0; i < entries.Count; i++)
+        for (int i = 0; i < entries.Count; i++)
         {
-            var (entry, _) = entries[i];
-            var source = catalogue.SourceSizeFor(entry.Style, entry.Fluent, icon);
-            var markup = catalogue.Content(entry.Style, entry.Fluent, source);
+            (IconEntry? entry, Shape _) = entries[i];
+            int source = catalogue.SourceSizeFor(entry.Style, entry.Fluent, icon);
+            string markup = catalogue.Content(entry.Style, entry.Fluent, source);
 
-            foreach (var (dark, colour) in new[]
+            foreach ((bool dark, SKColor colour) in new[]
                      {
                          (false, entry.Tint is Tint.Mask ? new SKColor(0x1F, 0x1F, 0x1F) : SKColor.Parse(entry.Color!)),
                          (true,  entry.Tint is Tint.Mask ? new SKColor(0xFF, 0xFF, 0xFF) : SKColor.Parse(entry.Color!))
                      })
             {
-                var png = Renderer.ToPng(markup, source, icon, colour, entry.Badge);
+                byte[] png = Renderer.ToPng(markup, source, icon, colour, entry.Badge);
                 using var frame = SKBitmap.Decode(png);
-                var x = (i % cols) * cell + pad;
-                var y = (i / cols) * cell + pad + (dark ? rows * cell : 0);
+                int x = (i % cols) * cell + pad;
+                int y = (i / cols) * cell + pad + (dark ? rows * cell : 0);
                 canvas.DrawBitmap(frame, x, y);
             }
         }
 
         using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        using SKData data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(path, data.ToArray());
     }
 }

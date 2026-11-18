@@ -14,7 +14,16 @@
          patch: an older rolling build will install over a newer one, because Windows Installer
          considers them equal. Across a release boundary DowngradeErrorMessage still applies.
          This also raises ICE61, which the wixproj suppresses by name. -->
-    <MajorUpgrade DowngradeErrorMessage="!(loc.Upgrade_NewerVersionInstalled)" Schedule="afterInstallExecute" AllowSameVersionUpgrades="yes" />
+    <!-- afterInstallInitialize: the old version is removed completely before the new one is
+         installed, inside the same transaction, so a failed upgrade still rolls back to it.
+         afterInstallExecute, inherited from upstream, installed the new files over the old ones
+         first, and Windows Installer replaces a versioned file only with a higher version. The
+         interop assemblies are 1.0.0.0 in every build (generated once and committed, ADR-0004),
+         so an upgrade kept whatever copy was installed before - observed 2026-10-07: unsigned
+         interop DLLs from an earlier unsigned build survived the upgrade to signed v2.1.0, until
+         an uninstall and reinstall. Measured in the built package: RemoveExistingProducts sat at
+         6501, after InstallFiles at 4000. -->
+    <MajorUpgrade DowngradeErrorMessage="!(loc.Upgrade_NewerVersionInstalled)" Schedule="afterInstallInitialize" AllowSameVersionUpgrades="yes" />
     <MediaTemplate EmbedCab="yes" />
     <Binary Id="mRemoteUG.Installer.CustomActions.CA.dll" SourceFile="$(var.SolutionDir)src\mRemoteUG.Installer.CustomActions\bin\$(var.Configuration)\mRemoteUG.Installer.CustomActions.CA.dll" />
     <Property Id="MsiLogging" Value="v" />

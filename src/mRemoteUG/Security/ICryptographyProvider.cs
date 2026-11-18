@@ -1,29 +1,31 @@
-﻿#nullable enable
 using System.Security;
 
-namespace mRemoteUG.Security
+namespace mRemoteUG.Security;
+
+public interface ICryptographyProvider
 {
-    public interface ICryptographyProvider
-    {
-        int BlockSizeInBytes { get; }
+    int BlockSizeInBytes { get; }
 
-        BlockCipherEngines CipherEngine { get; }
+    BlockCipherEngines CipherEngine { get; }
 
-        BlockCipherModes CipherMode { get; }
+    BlockCipherModes CipherMode { get; }
 
-        int KeyDerivationIterations { get; set; }
+    int KeyDerivationIterations { get; set; }
 
-        string Encrypt(string plainText, SecureString encryptionKey);
+    string Encrypt(string plainText, SecureString encryptionKey);
 
-        /// <summary>
-        /// Decrypts the given text, or returns null if it could not be authenticated with
-        /// the given key.
-        /// </summary>
-        /// <remarks>
-        /// A wrong key is not an exceptional condition here: it is how the connections file
-        /// asks for a password. AeadCryptographyProvider returns null for a failed AES-GCM tag
-        /// check, and XmlConnectionsDecryptor reads that as "prompt for the real password".
-        /// </remarks>
-        string? Decrypt(string cipherText, SecureString decryptionKey);
-    }
+    /// <summary>
+    /// Decrypts the given text.
+    /// </summary>
+    /// <exception cref="EncryptionException">
+    /// The text cannot be authenticated with the given key.
+    /// </exception>
+    /// <remarks>
+    /// A wrong key is not a null result: callers tell a wrong password by this exception,
+    /// as AesGcm does with AuthenticationTagMismatchException. PasswordAuthenticator asks
+    /// for the password again on it, and XmlConnectionsDecryptor reads it as "the file is
+    /// protected with another password". Damaged input (text that is not base64, an empty
+    /// key) throws something else, and is not taken for a wrong password.
+    /// </remarks>
+    string Decrypt(string cipherText, SecureString decryptionKey);
 }

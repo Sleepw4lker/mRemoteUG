@@ -1,5 +1,6 @@
 ---
 date: 2026-09-22
+status: accepted
 ---
 
 # Park RDP controls off-screen and dispose them once their session is down

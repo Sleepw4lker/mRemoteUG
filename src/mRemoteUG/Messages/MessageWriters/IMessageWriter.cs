@@ -1,8 +1,6 @@
-﻿#nullable enable
-namespace mRemoteUG.Messages.MessageWriters
+namespace mRemoteUG.Messages.MessageWriters;
+
+public interface IMessageWriter
 {
-    public interface IMessageWriter
-    {
-        void Write(IMessage message);
-    }
+    void Write(IMessage message);
 }

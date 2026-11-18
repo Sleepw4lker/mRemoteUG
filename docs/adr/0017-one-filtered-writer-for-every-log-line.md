@@ -1,5 +1,6 @@
 ---
 date: 2026-09-23
+status: accepted
 ---
 
 # Route every log line through one filtered writer
@@ -54,19 +55,21 @@ and close went from roughly fifteen Information lines to about four.
 part worth recording. Debug logging is off by default, so the only way to be *certain* a line
 would reach a user's log was to report it as Information — `RdpProtocol.cs` said so in a comment.
 That is why the detail was at Information, and why moving it would simply have been moved back by
-the next person who needed to see something. `mRemoteNG.exe --verbose` turns Debug on for one run
-without touching the saved setting, so "reproduce it under `--verbose` and send me the log"
-replaces "change this setting, restart, reproduce, and remember to change it back". Given
-[ADR-0013](0013-selftest-as-the-verification-mechanism.md) — where a behavioural finding costs a
-manual round trip to another machine — a switch that needs no instructions is the difference
-between one round and two.
+the next person who needed to see something. `mRemoteNG.exe --verbose` (`mRemoteUG.exe` since
+ADR-0024) turns Debug on for one run without touching the saved setting, so "reproduce it under
+`--verbose` and send me the log" replaces "change this setting, restart, reproduce, and remember
+to change it back". Given [ADR-0013](0013-selftest-as-the-verification-mechanism.md) — where a
+behavioural finding costs a manual round trip to another machine — a switch that needs no
+instructions is the difference between one round and two.
 
 Consequences:
 
-- **`--verbose` is read on the first line of `Main`**, setting
-  `LogMessageTypeFilteringOptions.ForceDebugMessages`. Recognising it in
-  `StartupArgumentsInterpreter` would be far too late: that does not run until `frmMain_Load`, by
-  which point the startup detail it is most wanted for has already been reported.
+- **`--verbose` is read at the top of `Main`, before anything logs**, setting
+  `LogMessageTypeFilteringOptions.ForceDebugMessages`. It was the first line when this was
+  written; it now follows `EnableMixedModeDpiHosting` and `CrashLogger.Install` (ADR-0021), and
+  neither of those logs on the way through. Recognising it in `StartupArgumentsInterpreter`
+  would be far too late: that does not run until `frmMain_Load`, by which point the startup
+  detail it is most wanted for has already been reported.
 - **Nothing that matters is behind the switch.** A teardown stage that never returns is still
   reported at Warning by `TeardownWatchdog`, and two conditions that had been *failures*
   mis-reported as Information were raised to Warning in the same pass: PuTTY's DPI awareness

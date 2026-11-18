@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using WixToolset.Dtf.WindowsInstaller;
 
 namespace mRemoteUG.Installer.CustomActions
@@ -12,7 +14,7 @@ namespace mRemoteUG.Installer.CustomActions
         public static ActionResult IsDotNetDesktopRuntimeInstalled(Session session)
         {
             session.Log("Begin IsDotNetDesktopRuntimeInstalled");
-            var required = int.Parse(session["REQUIREDDOTNETMAJORVERSION"]);
+            int required = int.Parse(session["REQUIREDDOTNETMAJORVERSION"], CultureInfo.InvariantCulture);
             new DesktopRuntimeChecker(session).Execute(required, "DOTNET_DESKTOP_RUNTIME_INSTALLED");
             return ActionResult.Success;
         }

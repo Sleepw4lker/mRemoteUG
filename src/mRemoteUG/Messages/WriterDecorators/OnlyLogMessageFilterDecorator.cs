@@ -1,25 +1,25 @@
-﻿#nullable enable
-using System;
 using mRemoteUG.Messages.MessageWriters;
 
-namespace mRemoteUG.Messages.WriterDecorators
+namespace mRemoteUG.Messages.WriterDecorators;
+
+public class OnlyLogMessageFilter : IMessageWriter
 {
-    public class OnlyLogMessageFilter : IMessageWriter
+    private readonly IMessageWriter _decoratedWriter;
+
+    public OnlyLogMessageFilter(IMessageWriter decoratedWriter)
     {
-        private readonly IMessageWriter _decoratedWriter;
+        ArgumentNullException.ThrowIfNull(decoratedWriter);
 
-        public OnlyLogMessageFilter(IMessageWriter decoratedWriter)
+        _decoratedWriter = decoratedWriter;
+    }
+
+    public void Write(IMessage message)
+    {
+        if (message.OnlyLog)
         {
-            if (decoratedWriter == null)
-                throw new ArgumentNullException(nameof(decoratedWriter));
-
-            _decoratedWriter = decoratedWriter;
+            return;
         }
 
-        public void Write(IMessage message)
-        {
-            if (message.OnlyLog) return;
-            _decoratedWriter.Write(message);
-        }
+        _decoratedWriter.Write(message);
     }
 }

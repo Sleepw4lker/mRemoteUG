@@ -1,36 +1,36 @@
-﻿using mRemoteUG.Connection;
+using mRemoteUG.Connection;
 using mRemoteUG.Container;
 using mRemoteUG.UI.Controls;
-using System;
-using System.Linq;
 
 
-namespace mRemoteUG.Tree
+namespace mRemoteUG.Tree;
+
+public class PreviousSessionOpener : IConnectionTreePostSetupAction
 {
-    public class PreviousSessionOpener : IConnectionTreeDelegate
+    private readonly IConnectionInitiator _connectionInitiator;
+
+    public PreviousSessionOpener(IConnectionInitiator connectionInitiator)
     {
-        private readonly IConnectionInitiator _connectionInitiator;
+        ArgumentNullException.ThrowIfNull(connectionInitiator);
 
-        public PreviousSessionOpener(IConnectionInitiator connectionInitiator)
+        _connectionInitiator = connectionInitiator;
+    }
+
+    public void Execute(IConnectionTree connectionTree)
+    {
+        IEnumerable<ConnectionInfo> connectionInfoList = connectionTree
+            .GetRootConnectionNode()
+            .GetRecursiveChildList()
+            .Where(node => !(node is ContainerInfo));
+        IEnumerable<ConnectionInfo> previouslyOpenedConnections = connectionInfoList
+            .Where(item =>
+                item.PleaseConnect &&
+                // ignore items that have already connected
+                !_connectionInitiator.ActiveConnections.Contains(item.ConstantID));
+
+        foreach (ConnectionInfo connectionInfo in previouslyOpenedConnections)
         {
-            if (connectionInitiator == null)
-                throw new ArgumentNullException(nameof(connectionInitiator));
-            _connectionInitiator = connectionInitiator;
-        }
-
-        public void Execute(IConnectionTree connectionTree)
-        {
-            var connectionInfoList = connectionTree.GetRootConnectionNode().GetRecursiveChildList().Where(node => !(node is ContainerInfo));
-            var previouslyOpenedConnections = connectionInfoList
-                .Where(item => 
-                    item.PleaseConnect && 
-                    // ignore items that have already connected
-                    !_connectionInitiator.ActiveConnections.Contains(item.ConstantID));
-
-            foreach (var connectionInfo in previouslyOpenedConnections)
-            {
-                _connectionInitiator.OpenConnection(connectionInfo);
-            }
+            _connectionInitiator.OpenConnection(connectionInfo);
         }
     }
 }

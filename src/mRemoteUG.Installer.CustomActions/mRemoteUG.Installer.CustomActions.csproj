@@ -8,14 +8,21 @@
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
     <!--
-      net472 for WiX DTF, so C# 7.3, which has no nullable syntax: the annotations setting
-      Directory.Build.props applies to the rest of the solution (ADR-0022) is a hard error here.
-      This project is outside that migration.
+      Exception: CustomActions, see "Where this repository departs from these conventions" in
+      docs/conventions/csharp.md.
+
+      net472 for WiX DTF, so C# 7.3, which has no nullable syntax: the `enable` setting
+      Directory.Build.props applies to the rest of the solution (ADR-0022) is a hard error here,
+      so this project turns it off.
     -->
     <Nullable>disable</Nullable>
+    <!-- Exception: CustomActions, see "Where this repository departs from these conventions" in
+         docs/conventions/csharp.md. Global using directives need C# 10; with ImplicitUsings on,
+         the generated GlobalUsings.g.cs fails this project's build with CS8370. -->
+    <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="WixToolset.Dtf.CustomAction" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Dtf.CustomAction" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="CustomAction.config" CopyToOutputDirectory="PreserveNewest" />

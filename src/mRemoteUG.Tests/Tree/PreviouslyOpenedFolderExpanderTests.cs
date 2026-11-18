@@ -1,49 +1,54 @@
-﻿using System.Linq;
 using mRemoteUG.Connection;
 using mRemoteUG.Container;
 using mRemoteUG.Tree;
 using mRemoteUG.Tree.Root;
 using mRemoteUG.UI.Controls;
+
 using NSubstitute;
+
 using NUnit.Framework;
 
 
-namespace mRemoteUG.Tests.Tree
+namespace mRemoteUG.Tests.Tree;
+
+public class PreviouslyOpenedFolderExpanderTests
 {
-    public class PreviouslyOpenedFolderExpanderTests
+    private readonly PreviouslyOpenedFolderExpander _folderExpander = new();
+
+    // Rebuilt per test in Setup: a substitute records every call it receives.
+    private IConnectionTree _connectionTree = null!;
+
+    [SetUp]
+    public void Setup()
     {
-        private PreviouslyOpenedFolderExpander _folderExpander;
-        private IConnectionTree _connectionTree;
+        _connectionTree = Substitute.For<IConnectionTree>();
+    }
 
-        [SetUp]
-        public void Setup()
-        {
-            _folderExpander = new PreviouslyOpenedFolderExpander();
-            _connectionTree = Substitute.For<IConnectionTree>();
-        }
+    [Test]
+    public void ExpandsAllFoldersThatAreMarkedForExpansion()
+    {
+        ConnectionTreeModel connectionTreeModel = GenerateConnectionTreeModel();
+        _connectionTree.ConnectionTreeModel.Returns(connectionTreeModel);
+        _connectionTree.GetRootConnectionNode().Returns(connectionTreeModel.RootNodes[0]);
+        _folderExpander.Execute(_connectionTree);
+        Assert.That(_connectionTree.ExpandedObjects,
+                    Is.EquivalentTo(connectionTreeModel
+                                    .GetRecursiveChildList()
+                                    .OfType<ContainerInfo>()
+                                    .Where(info => info.IsExpanded)));
+    }
 
-        [Test]
-        public void ExpandsAllFoldersThatAreMarkedForExpansion()
-        {
-            var connectionTreeModel = GenerateConnectionTreeModel();
-            _connectionTree.ConnectionTreeModel.Returns(connectionTreeModel);
-            _connectionTree.GetRootConnectionNode().Returns(connectionTreeModel.RootNodes[0]);
-            _folderExpander.Execute(_connectionTree);
-            Assert.That(_connectionTree.ExpandedObjects, Is.EquivalentTo(connectionTreeModel.GetRecursiveChildList().OfType<ContainerInfo>().Where(info => info.IsExpanded)));
-        }
-
-        private ConnectionTreeModel GenerateConnectionTreeModel()
-        {
-            var connectionTreeModel = new ConnectionTreeModel();
-            var root = new RootNodeInfo(RootNodeType.Connection) { IsExpanded = true };
-            var folder1 = new ContainerInfo { IsExpanded = true };
-            var folder2 = new ContainerInfo();
-            var con1 = new ConnectionInfo();
-            root.AddChild(folder1);
-            folder1.AddChild(folder2);
-            root.AddChild(con1);
-            connectionTreeModel.AddRootNode(root);
-            return connectionTreeModel;
-        }
+    private static ConnectionTreeModel GenerateConnectionTreeModel()
+    {
+        var connectionTreeModel = new ConnectionTreeModel();
+        var root = new RootNodeInfo(RootNodeType.Connection) { IsExpanded = true };
+        var folder1 = new ContainerInfo { IsExpanded = true };
+        var folder2 = new ContainerInfo();
+        var con1 = new ConnectionInfo();
+        root.AddChild(folder1);
+        folder1.AddChild(folder2);
+        root.AddChild(con1);
+        connectionTreeModel.AddRootNode(root);
+        return connectionTreeModel;
     }
 }

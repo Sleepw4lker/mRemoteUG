@@ -1,87 +1,88 @@
-using System;
-using mRemoteUG.App;
+using System.Diagnostics.CodeAnalysis;
+
 using mRemoteUG.Security;
 
-namespace mRemoteUG.UI.Forms.OptionsPages
+namespace mRemoteUG.UI.Forms.OptionsPages;
+
+public sealed partial class CredentialsPage : OptionsPage
 {
-	public sealed partial class CredentialsPage : OptionsPage
+    public CredentialsPage()
     {
-        public CredentialsPage()
+        InitializeComponent();
+    }
+
+    public override string PageName
+    {
+        get => Language.Credentials;
+        set { }
+    }
+
+    public override void ApplyLanguage()
+    {
+        base.ApplyLanguage();
+        lblDefaultCredentials.Text = Language.strEmptyUsernamePasswordDomainFields;
+        radCredentialsNoInfo.Text = Language.strNoInformation;
+        radCredentialsWindows.Text = Language.strMyCurrentWindowsCreds;
+        radCredentialsCustom.Text = Language.strTheFollowing;
+        lblCredentialsUsername.Text = Language.strLabelUsername;
+        lblCredentialsPassword.Text = Language.strLabelPassword;
+        lblCredentialsDomain.Text = Language.strLabelDomain;
+    }
+
+    public override void LoadSettings()
+    {
+        base.SaveSettings();
+
+        // ReSharper disable once SwitchStatementMissingSomeCases
+        switch (Settings.Default.EmptyCredentials)
         {
-            InitializeComponent();
+            case "noinfo":
+                radCredentialsNoInfo.Checked = true;
+                break;
+            case "windows":
+                radCredentialsWindows.Checked = true;
+                break;
+            case "custom":
+            case "admpwd":
+                radCredentialsCustom.Checked = true;
+                break;
         }
 
-        public override string PageName {
-            get => Language.Credentials;
-            set { }
-        }
+        txtCredentialsUsername.Text = Settings.Default.DefaultUsername;
+        txtCredentialsPassword.Text = DefaultCredentials.Password;
+        txtCredentialsDomain.Text = Settings.Default.DefaultDomain;
+    }
 
-        public override void ApplyLanguage()
+    public override void SaveSettings()
+    {
+        if (radCredentialsNoInfo.Checked)
         {
-            base.ApplyLanguage();
-            lblDefaultCredentials.Text = Language.strEmptyUsernamePasswordDomainFields;
-            radCredentialsNoInfo.Text = Language.strNoInformation;
-            radCredentialsWindows.Text = Language.strMyCurrentWindowsCreds;
-            radCredentialsCustom.Text = Language.strTheFollowing;
-            lblCredentialsUsername.Text = Language.strLabelUsername;
-            lblCredentialsPassword.Text = Language.strLabelPassword;
-            lblCredentialsDomain.Text = Language.strLabelDomain;
+            Settings.Default.EmptyCredentials = "noinfo";
         }
-
-        public override void LoadSettings()
+        else if (radCredentialsWindows.Checked)
         {
-            base.SaveSettings();
-
-            // ReSharper disable once SwitchStatementMissingSomeCases
-            switch (Settings.Default.EmptyCredentials)
-            {
-                case "noinfo":
-                    radCredentialsNoInfo.Checked = true;
-                    break;
-                case "windows":
-                    radCredentialsWindows.Checked = true;
-                    break;
-                case "custom":
-                case "admpwd":
-                    radCredentialsCustom.Checked = true;
-                    break;
-            }
-
-            txtCredentialsUsername.Text = Settings.Default.DefaultUsername;
-            txtCredentialsPassword.Text = DefaultCredentials.Password;
-            txtCredentialsDomain.Text = Settings.Default.DefaultDomain;
+            Settings.Default.EmptyCredentials = "windows";
         }
-
-        public override void SaveSettings()
+        else if (radCredentialsCustom.Checked)
         {
-            if (radCredentialsNoInfo.Checked)
-            {
-                Settings.Default.EmptyCredentials = "noinfo";
-            }
-            else if (radCredentialsWindows.Checked)
-            {
-                Settings.Default.EmptyCredentials = "windows";
-            }
-            else if (radCredentialsCustom.Checked)
-            {
-                Settings.Default.EmptyCredentials = "custom";
-            }
-
-            Settings.Default.DefaultUsername = txtCredentialsUsername.Text;
-            DefaultCredentials.Password = txtCredentialsPassword.Text;
-            Settings.Default.DefaultDomain = txtCredentialsDomain.Text;
-
-            Settings.Default.Save();
+            Settings.Default.EmptyCredentials = "custom";
         }
 
-        private void radCredentialsCustom_CheckedChanged(object sender, EventArgs e)
-        {
-            lblCredentialsUsername.Enabled = radCredentialsCustom.Checked;
-            lblCredentialsPassword.Enabled = radCredentialsCustom.Checked;
-            lblCredentialsDomain.Enabled = radCredentialsCustom.Checked;
-            txtCredentialsUsername.Enabled = radCredentialsCustom.Checked;
-            txtCredentialsPassword.Enabled = radCredentialsCustom.Checked;
-            txtCredentialsDomain.Enabled = radCredentialsCustom.Checked;
-        }
+        Settings.Default.DefaultUsername = txtCredentialsUsername.Text;
+        DefaultCredentials.Password = txtCredentialsPassword.Text;
+        Settings.Default.DefaultDomain = txtCredentialsDomain.Text;
+
+        Settings.Default.Save();
+    }
+
+    [SuppressMessage("Style", "IDE1006", Justification = "The name is wired in CredentialsPage.Designer.cs.")]
+    private void radCredentialsCustom_CheckedChanged(object sender, EventArgs e)
+    {
+        lblCredentialsUsername.Enabled = radCredentialsCustom.Checked;
+        lblCredentialsPassword.Enabled = radCredentialsCustom.Checked;
+        lblCredentialsDomain.Enabled = radCredentialsCustom.Checked;
+        txtCredentialsUsername.Enabled = radCredentialsCustom.Checked;
+        txtCredentialsPassword.Enabled = radCredentialsCustom.Checked;
+        txtCredentialsDomain.Enabled = radCredentialsCustom.Checked;
     }
 }

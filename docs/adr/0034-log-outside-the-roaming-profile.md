@@ -1,6 +1,6 @@
 ---
 date: 2026-10-01
-status: proposed
+status: accepted
 ---
 
 # Write the log under %LOCALAPPDATA%, keep settings under %APPDATA%
@@ -34,6 +34,14 @@ this change calls that into question — only the log is roaming-inappropriate.
 The same reasoning as the settings-directory move in ADR-0024: this has not been published
 under either layout, so the only affected profile is the author's, and there is no old log
 content worth carrying forward — a log is read once, for the problem it was captured for,
-and then it is backup noise. A user with a custom `LogFilePath` already set under Options ->
-Notifications -> Logging is unaffected either way; `Logger.EffectiveLogPath` only falls back
-to the new default when that setting is empty.
+and then it is backup noise. `Logger.EffectiveLogPath` uses the new default whenever *Log to
+application directory* is checked under Options -> Notifications -> Logging — the
+`LogToApplicationDirectory` setting, on by default, which despite its label means "use the
+default path" — or when `LogFilePath` is empty or blank. Only with that box cleared and a path
+set is a custom `LogFilePath` used, and then it is unaffected either way. One wrinkle: when
+`LogFilePath` is empty, `Logger.Initialize` fills it in with the default of the day, so a
+profile that ran before this change can hold the old `%APPDATA%` path there. It matters only to
+someone who clears the box later, and the options page shows that path when they do.
+
+*History: written 2026-10-01; corrected 2026-10-07 - the fallback is described as
+`Logger.EffectiveLogPath` implements it, including `LogToApplicationDirectory`.*

@@ -1,5 +1,6 @@
 ---
 date: 2026-09-29
+status: accepted
 ---
 
 # Drop autocomplete from the quick connect box

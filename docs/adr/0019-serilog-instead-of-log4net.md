@@ -1,5 +1,6 @@
 ---
 date: 2026-09-23
+status: accepted
 ---
 
 # Replace log4net with Serilog, and write the file sink by hand

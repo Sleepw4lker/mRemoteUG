@@ -1,14 +1,14 @@
-﻿using mRemoteUG.UI.Controls;
+using mRemoteUG.Tree.Root;
+using mRemoteUG.UI.Controls;
 
 
-namespace mRemoteUG.Tree
+namespace mRemoteUG.Tree;
+
+public class RootNodeExpander : IConnectionTreePostSetupAction
 {
-    public class RootNodeExpander : IConnectionTreeDelegate
+    public void Execute(IConnectionTree connectionTree)
     {
-        public void Execute(IConnectionTree connectionTree)
-        {
-            var rootConnectionNode = connectionTree.GetRootConnectionNode();
-            connectionTree.InvokeExpand(rootConnectionNode);
-        }
+        RootNodeInfo rootConnectionNode = connectionTree.GetRootConnectionNode();
+        connectionTree.InvokeExpand(rootConnectionNode);
     }
 }

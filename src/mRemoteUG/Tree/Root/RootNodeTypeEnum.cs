@@ -1,8 +1,7 @@
-﻿namespace mRemoteUG.Tree.Root
+namespace mRemoteUG.Tree.Root;
+
+public enum RootNodeType
 {
-    public enum RootNodeType
-    {
-        Connection,
-        PuttySessions
-    }
+    Connection,
+    PuttySessions
 }

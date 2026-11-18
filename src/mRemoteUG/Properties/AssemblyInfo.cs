@@ -4,10 +4,12 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-// Normally emitted by the SDK from the net10.0-windows target, but GenerateAssemblyInfo is
-// off because the attributes here are maintained by hand. Without it, every call into
-// WinForms or the registry raises CA1416 ("this call site is reachable on all platforms"),
-// because nothing tells the analyzer the assembly is Windows-only.
+// Normally emitted by the SDK from the net10.0-windows target, as "Windows7.0" - which is why
+// Directory.Build.props switches that emission off (GenerateSupportedOSPlatformAttribute) while
+// generating the version attributes: beside this one, CA1416 went by the SDK's 7.0 and the
+// Windows 11 floor stopped counting. PlatformAttributeTests pins that there is exactly one.
+// Without any, every call into WinForms or the registry raises CA1416 ("this call site is
+// reachable on all platforms"), because nothing tells the analyzer the assembly is Windows-only.
 //
 // The version is the Windows 11 baseline, and it is declared here rather than by moving the
 // target framework to net10.0-windows10.0.22000.0. That TFM would set TargetPlatformVersion

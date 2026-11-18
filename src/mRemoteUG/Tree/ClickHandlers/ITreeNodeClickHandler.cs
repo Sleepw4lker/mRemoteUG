@@ -1,9 +1,6 @@
-﻿using mRemoteUG.Connection;
+namespace mRemoteUG.Tree;
 
-namespace mRemoteUG.Tree
+public interface ITreeNodeClickHandler<in T>
 {
-    public interface ITreeNodeClickHandler<in T>
-    {
-        void Execute(T clickedNode);
-    }
+    void Execute(T clickedNode);
 }

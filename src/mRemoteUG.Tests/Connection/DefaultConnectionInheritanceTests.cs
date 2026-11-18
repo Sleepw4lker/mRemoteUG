@@ -1,63 +1,80 @@
-﻿using System.Collections.Generic;
+using System.Configuration;
 using System.Reflection;
+
 using mRemoteUG.Connection;
+
 using NUnit.Framework;
 
 
-namespace mRemoteUG.Tests.Connection
+namespace mRemoteUG.Tests.Connection;
+
+public class DefaultConnectionInheritanceTests
 {
-	public class DefaultConnectionInheritanceTests
+    [TestCaseSource(nameof(GetInheritanceProperties))]
+    public void LoadingDefaultInheritanceUpdatesAllProperties(PropertyInfo property)
     {
-	    [TestCaseSource(nameof(GetInheritanceProperties))]
-		public void LoadingDefaultInheritanceUpdatesAllProperties(PropertyInfo property)
-        {
-			var inheritanceSource = new ConnectionInfoInheritance(new object(), true);
-            inheritanceSource.TurnOnInheritanceCompletely();
-	        DefaultConnectionInheritance.Instance.TurnOffInheritanceCompletely();
+        var inheritanceSource = new ConnectionInfoInheritance(new object(), true);
+        inheritanceSource.TurnOnInheritanceCompletely();
+        DefaultConnectionInheritance.Instance.TurnOffInheritanceCompletely();
 
-            DefaultConnectionInheritance.Instance.LoadFrom(inheritanceSource);
+        DefaultConnectionInheritance.Instance.LoadFrom(inheritanceSource);
 
-	        var valueInDestination = property.GetValue(DefaultConnectionInheritance.Instance);
-	        var valueInSource = property.GetValue(inheritanceSource);
-	        Assert.That(valueInDestination, Is.EqualTo(valueInSource));
-		}
+        object? valueInDestination = property.GetValue(DefaultConnectionInheritance.Instance);
+        object? valueInSource = property.GetValue(inheritanceSource);
+        Assert.That(valueInDestination, Is.EqualTo(valueInSource));
+    }
 
-		[TestCaseSource(nameof(GetInheritanceProperties))]
-		public void SavingDefaultInheritanceExportsAllProperties(PropertyInfo property)
-        {
-			var saveTarget = new ConnectionInfoInheritance(new object(), true);
-	        saveTarget.TurnOffInheritanceCompletely();
-	        DefaultConnectionInheritance.Instance.TurnOnInheritanceCompletely();
+    [TestCaseSource(nameof(GetInheritanceProperties))]
+    public void SavingDefaultInheritanceExportsAllProperties(PropertyInfo property)
+    {
+        var saveTarget = new ConnectionInfoInheritance(new object(), true);
+        saveTarget.TurnOffInheritanceCompletely();
+        DefaultConnectionInheritance.Instance.TurnOnInheritanceCompletely();
 
-	        DefaultConnectionInheritance.Instance.SaveTo(saveTarget);
+        DefaultConnectionInheritance.Instance.SaveTo(saveTarget);
 
-	        var valueInDestination = property.GetValue(saveTarget);
-	        var valueInSource = property.GetValue(DefaultConnectionInheritance.Instance);
-	        Assert.That(valueInDestination, Is.EqualTo(valueInSource));
-		}
+        object? valueInDestination = property.GetValue(saveTarget);
+        object? valueInSource = property.GetValue(DefaultConnectionInheritance.Instance);
+        Assert.That(valueInDestination, Is.EqualTo(valueInSource));
+    }
 
-        [Test]
-        public void NewInheritanceInstancesCreatedWithDefaultInheritanceValues()
-        {
-            DefaultConnectionInheritance.Instance.Domain = true;
-            var inheritanceInstance = new ConnectionInfoInheritance(new object());
-            Assert.That(inheritanceInstance.Domain, Is.True);
-        }
+    // Startup and the options dialog load and save the default inheritance through
+    // Settings.Default with an "InhDefault" prefix, by reflection. A property with no matching
+    // setting is skipped with only a logged error, so its default is never loaded or saved.
+    [TestCaseSource(nameof(GetInheritanceProperties))]
+    public void EveryInheritancePropertyHasAUserSetting(PropertyInfo property)
+    {
+        string settingName = "InhDefault" + property.Name;
 
-		[TestCaseSource(nameof(GetInheritanceProperties))]
-		public void NewInheritanceInstancesCreatedWithAllDefaultInheritanceValues(PropertyInfo property)
-        {
-            DefaultConnectionInheritance.Instance.TurnOnInheritanceCompletely();
-            var inheritanceInstance = new ConnectionInfoInheritance(new object());
+        PropertyInfo? setting = typeof(Settings).GetProperty(settingName);
 
-			var valueInDestination = property.GetValue(inheritanceInstance);
-	        var valueInSource = property.GetValue(DefaultConnectionInheritance.Instance);
-	        Assert.That(valueInDestination, Is.EqualTo(valueInSource));
-		}
+        Assert.That(setting, Is.Not.Null, $"Settings has no {settingName}");
+        Assert.That(setting!.PropertyType, Is.EqualTo(property.PropertyType));
+        Assert.That(setting.GetCustomAttribute<UserScopedSettingAttribute>(), Is.Not.Null,
+            $"{settingName} is not user-scoped, so it cannot be saved");
+    }
 
-	    private static IEnumerable<PropertyInfo> GetInheritanceProperties()
-	    {
-		    return new ConnectionInfoInheritance(new object(), true).GetProperties();
-	    }
-	}
+    [Test]
+    public void NewInheritanceInstancesCreatedWithDefaultInheritanceValues()
+    {
+        DefaultConnectionInheritance.Instance.Domain = true;
+        var inheritanceInstance = new ConnectionInfoInheritance(new object());
+        Assert.That(inheritanceInstance.Domain, Is.True);
+    }
+
+    [TestCaseSource(nameof(GetInheritanceProperties))]
+    public void NewInheritanceInstancesCreatedWithAllDefaultInheritanceValues(PropertyInfo property)
+    {
+        DefaultConnectionInheritance.Instance.TurnOnInheritanceCompletely();
+        var inheritanceInstance = new ConnectionInfoInheritance(new object());
+
+        object? valueInDestination = property.GetValue(inheritanceInstance);
+        object? valueInSource = property.GetValue(DefaultConnectionInheritance.Instance);
+        Assert.That(valueInDestination, Is.EqualTo(valueInSource));
+    }
+
+    private static IEnumerable<PropertyInfo> GetInheritanceProperties()
+    {
+        return new ConnectionInfoInheritance(new object(), true).GetProperties();
+    }
 }

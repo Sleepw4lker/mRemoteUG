@@ -1,5 +1,6 @@
 ---
 date: 2026-09-29
+status: accepted
 ---
 
 # Declare the display scale before connecting, through the extended-settings property bag
@@ -103,7 +104,78 @@ pre-connect declaration is the documented way to do it, and it works.
 
     `tmrReconnect_Elapsed` *is* reachable and does re-declare the scale before its
     `_rdpClient.Connect()`, so the reconnect this application drives itself is covered.
+
+    **Accepted as a known limitation, 2026-10-07.** It needs both a monitor change during the
+    session and a network drop that mstscax recovers from by itself, and the remedy is
+    *Reconnect* on the tab's menu: it closes the session and opens a new one, which declares the
+    scale for the monitor the window is on now, before connecting. Replacing mstscax's
+    reconnect with this application's own would close it, at the price of changing session
+    handling - the area [ADR-0005](0005-park-rdp-controls-before-disposing.md) is about - and is
+    not worth doing unless the monitor-change case above turns out not to rescale either.
 - A two-pixel resolution nudge on the `SessionCreated` pass was tried during this work, as
   insurance against the second candidate mechanism in platform-findings, and is deliberately
   **not** in the code: it settled nothing, and once the session is created scaled it would have
   nothing to do. Don't re-add it without a measurement that asks for it.
+
+**Amended 2026-11-17: the monitor-change case above is measured, and it was broken in the default
+case.** A `--verbose` log of a dock from a 150% panel to a 200% monitor, with a FitToWindow
+connection, AutomaticResize on and SmartSize off, showed the resize that comes with the move doing
+its job: its last request was the Tab's final size, 4364x2254, at 200%. The `DpiChanged` pass ran
+9 ms *after* it. It took the size from the control's `DesktopWidth`/`DesktopHeight`, which still
+reported 3604x1940, a request two behind, and sent that. The session ended up smaller than the
+Tab, with a grey border round it. So the guess above, that the resize "probably saves" this case,
+was wrong about the order: the pass that was meant to be the backstop undid the resize.
+
+The `DpiChanged` pass now sends the size the session was last asked for, and reads the control's
+reported size only when nothing has been asked for yet (`RdpDisplayScale.TryChooseRescaleSize`).
+After a resize at the new scale it therefore sends nothing. A fixed-resolution session still gets
+the scale-only update this record describes, because its last request is the desktop size recorded
+when it connected. The lag itself is in
+[../platform-findings.md](../platform-findings.md). Whether the scale-only update rescales a
+fixed-resolution session is still untested.
+
+**Amended 2026-11-17: mstscax's own automatic reconnect, measured.** The consequence above says the
+reconnect "never enters managed code" and that the case "has no fix here". Three things are now
+measured on a current Windows 11 host:
+
+- The reconnect raises `OnAutoReconnecting2` and `OnAutoReconnected`. Both are now logged: the
+  disconnect reason, whether the network is available, the attempt out of the maximum, and the
+  reconnect itself. Until then, a lab run had no trace of a drop at all.
+- **`OnLoginComplete` fires again after it**, so the `LoginComplete` pass re-applies the scale. Since
+  that pass reads the DPI from the window (`CurrentDpi()`), it uses the monitor the window is on
+  now. The limitation above is therefore narrower than it reads.
+- **`UpdateSessionDisplaySettings` returns `E_UNEXPECTED` right after every connect and every
+  automatic reconnect**, before the display channel is open. The code read that as "a server older
+  than RDP 8.1" and switched the session to resizing by reconnecting. Sending size and scale from
+  `OnAutoReconnected` as well was tried: it hit exactly that window, and every reconnect it fell
+  back to dropped the session again, every ten seconds, more than thirty times, until the host
+  locked the session ("blocked by Remote Desktop Configuration") and only the console could free it.
+
+So `OnAutoReconnected` only logs, and `E_UNEXPECTED` never latches a session and never falls back
+to a reconnect (`RdpDisplayScale.IsRefusalForNow`). The price is that a genuinely old server
+answering `E_UNEXPECTED` no longer gets reconnect-based resizing; such servers are outside the
+fork's range. **A reconnect is never the answer to a refusal that may be transient**, because a
+reconnect that fails the same way repeats on every attempt.
+
+**Amended 2026-11-18: the `LoginComplete` pass sends a following session its window's size.**
+A `--verbose` log of an undock from 200% to 150% that also changed the network (#246) showed the
+cost of the amendment above. While the control reconnected by itself, every resize and the
+`DpiChanged` pass were refused with `E_UNEXPECTED` and, as decided, neither latched nor retried by
+reconnecting; each was forgotten. The `LoginComplete` pass after the reconnect then sent the size
+the control reported, 3462x1915, the docked size, at 150%, into a Tab of 1627x1011. The session
+showed scrollbars, and its text stayed at 200%. That last part is consistent with the second
+candidate in [../platform-findings.md](../platform-findings.md), a scale-only change at an
+unchanged resolution, and is not proven: the only request with the new scale had the session's
+old resolution. Nothing sent anything again until the laptop was docked.
+
+So for a session whose resolution follows its window (`AutomaticResize` on, FitToWindow or
+Fullscreen, SmartSize off), the `LoginComplete` pass now sends the window's size at the window's
+DPI, as one request. That pass is the replay of everything dropped before it, by the logon guard
+or by a refusal for now, without keeping a record of what was dropped; it follows every logon,
+including the one after either kind of reconnect. The `DpiChanged` pass, when a refusal has left
+nothing asked for, falls back to the window's size too instead of the lagging reported one. A
+fixed-resolution session is unchanged: it is sent the reported size, so only its scale changes.
+
+Still no retry of its own and still no reconnect on `E_UNEXPECTED`: each event makes one attempt.
+If the `LoginComplete` pass itself were refused for now, the next resize or DPI change would be
+the next attempt. That was not seen in either lab log; the log says so if it happens.

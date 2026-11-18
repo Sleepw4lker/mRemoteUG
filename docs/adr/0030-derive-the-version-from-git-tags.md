@@ -1,6 +1,6 @@
 ---
 date: 2026-09-29
-status: proposed — supersedes ADR-0025
+status: accepted, supersedes ADR-0025
 ---
 
 # Derive the version from the git tags, and release by tagging
@@ -20,9 +20,10 @@ git describe --tags --long --always --dirty=.dirty --match "v[0-9]*.[0-9]*.[0-9]
 
 The fourth field is the CI run number, `0` for a local build. So **every build has a distinct
 version, and pushing a `v*` tag is the only act that changes which version a build carries.**
-That is the rolling model this record exists to write down: builds are rolling and daily rather
-than cut for a release channel, and a tag does not make CI do anything to the
-output beyond what it does for every other push.
+That is the rolling model this record exists to write down: every push builds, tests, signs and
+uploads an MSI, and a tag changes nothing about how that is done. What a tag adds is the start
+of a release - a Forgejo draft, and from it GitHub - which [ADR-0035](0035-publish-releases-to-github-as-snapshots.md)
+has.
 
 This supersedes [ADR-0025](0025-release-on-a-tag.md), which is five days old. That record
 argued the opposite case carefully, and the argument was sound on its own terms — it is worth
@@ -44,6 +45,26 @@ by the arrangement itself.
 
 Deriving the number removes the number from review and removes all five. The thing being
 reviewed was never really the version; it was whether two copies of it agreed.
+
+## Only `v<major>.<minor>.<patch>`, and no pre-releases
+
+The `--match` pattern is a glob, and its last `*` takes anything, so `v2.2.0-rc.1` matches it.
+The version regex cannot parse such a tag, and the build fell back to the seed - silently, for the
+tagged build and for every build after it, because `describe` answers with the nearest tag.
+Measured 2026-10-07, git's side with a scratch repository and the parsing through
+`VersionDescribeOverride`:
+
+```
+  v2.1.0-5-g1a2b3c4d          -> 2.1.1     correct
+  v2.2.0-rc.1-0-g1a2b3c4d     -> 2.1.0     the seed
+  v2.2.0-rc.1-3-g1a2b3c4d     -> 2.1.0     and every build after it
+```
+
+There are no pre-releases, so `describe` is now also given `--exclude "*-*"`: a stray hyphen tag
+cannot move the version, and a build on one reads as the next patch of the last real release.
+Teaching the regex `-rc.N` was the alternative, rejected because Windows Installer has no way to
+represent a pre-release in `ProductVersion`, so an rc and its release would share one number.
+The release step refuses such a tag by name.
 
 ## The consequence that is not obvious: the MSI
 
@@ -81,8 +102,8 @@ build number needs to be.
 
 `InformationalVersion` is `<file version>+g<commit>[.dirty]`, and `GeneralAppInfo` splits it at
 the `+`: the About dialog shows what comes before, the log keeps the whole string. The development
-environment cannot reach an RDP or SSH host, so a fault is diagnosed by reading a log off the machine that
-saw it ([ADR-0013](0013-selftest-as-the-verification-mechanism.md)); which commit produced that
+environment cannot reach an RDP or SSH host, so a fault is diagnosed by reading a log off the
+machine that saw it ([ADR-0013](0013-selftest-as-the-verification-mechanism.md)); which commit produced that
 binary is not recoverable from anything else in the log.
 
 Two measurements shaped this and are recorded in
@@ -114,32 +135,19 @@ back out of the binary with Sysinternals `sigcheck.exe` under `-ErrorAction Sile
 and left an unversioned MSI when it failed — has no reason to exist. A `Move` task fails the
 build instead.
 
-The MSI goes to the Forgejo **artifact store**, on every push including a tagged one, alongside
-test results and the self-test report — the same place, the same zip wrapping, for all of them.
-An earlier revision of this workflow instead PUT the MSI to the Forgejo generic package
-registry, specifically to avoid that wrapping, and separately created a Forgejo Release with the
-MSI attached when the push was a `v*` tag. Both were removed: the builds were rolling and
-daily, and a tag's only remaining effect is the version number a build carries. A
-tagged build's MSI is retrieved from that run's artifact like any other build's.
+The MSI goes to the Forgejo **artifact store** on every push, alongside the test results and
+the self-test report. A tagged build also attaches it to the draft release it creates
+([ADR-0035](0035-publish-releases-to-github-as-snapshots.md)). An earlier revision PUT the MSI to
+the Forgejo generic package registry instead; that is gone for good.
 
 ## What is unchanged
 
-`CHANGELOG.TXT` is still edited by hand before tagging. Signing is still unwired — no
-certificate — so the uploaded MSI is unsigned; with no release notes to carry a SHA256 anymore,
-`Get-FileHash` against the artifact is the only integrity check available, and it is not run by
-CI. The self-test is still graded on its report rather than its exit code
-([ADR-0013](0013-selftest-as-the-verification-mechanism.md)).
+`CHANGELOG.TXT` is still edited by hand before tagging; its top section becomes the draft's
+notes. The self-test is still graded on its report rather than its exit code
+([ADR-0013](0013-selftest-as-the-verification-mechanism.md)). Every build is signed, and the
+build is split in two to make room for it ([ADR-0032](0032-sign-on-the-signing-server.md)).
 
-**Amended 2026-10-01: signing is wired, and the single `dotnet build` described above is now
-two.** There is a certificate, behind a remote signing service that CI calls, and every build
-signs the executable, the DLLs that are ours, the custom action and the package — the payload
-*inside* the package included, which is what forced the split: everything WiX packages is read
-from `bin\Release` during its own compile, so the payload has to be signed between the
-application build and the installer build. [ADR-0032](0032-sign-on-the-signing-server.md) has
-it. The uploaded MSI is signed; `Get-FileHash` is no longer the only check a downloader has.
-
-**Amended 2026-10-07: a tag drafts a release again.** A tagged build now drafts a Forgejo release
-with the signed MSI attached, and publishing the draft publishes the release to GitHub - so a tag
-is once more the start of a release channel, not only a version number. The rolling builds and
-the derived version are unchanged. [ADR-0035](0035-publish-releases-to-github-as-snapshots.md)
-has it.
+*History: written 2026-09-29, when a tag changed nothing but the version and nothing was
+signed. Amended 2026-10-01 for the signing (ADR-0032) and 2026-10-07 for the release draft
+(ADR-0035) and the exclusion of hyphen tags. This text is the current state; the amendments
+are folded into it.*

@@ -1,43 +1,37 @@
-﻿using System.Windows.Forms;
 using mRemoteUG.Connection;
 using mRemoteUG.Tree;
+
 using NUnit.Framework;
 
 
-namespace mRemoteUG.Tests.Tree
+namespace mRemoteUG.Tests.Tree;
+
+public class SelectedConnectionDeletionConfirmerTests
 {
-    public class SelectedConnectionDeletionConfirmerTests
+    private readonly ConnectionInfo _testConnectionInfo = new();
+
+    [Test]
+    public void ClickingYesReturnsTrue()
     {
-        private ConnectionInfo _testConnectionInfo;
+        var deletionConfirmer = new SelectedConnectionDeletionConfirmer(MockClickYes);
+        Assert.That(deletionConfirmer.Confirm(_testConnectionInfo), Is.True);
+    }
 
-        [SetUp]
-        public void Setup()
-        {
-            _testConnectionInfo = new ConnectionInfo();
-        }
+    [Test]
+    public void ClickingNoReturnsFalse()
+    {
+        var deletionConfirmer = new SelectedConnectionDeletionConfirmer(MockClickNo);
+        Assert.That(deletionConfirmer.Confirm(_testConnectionInfo), Is.False);
+    }
 
-        [Test]
-        public void ClickingYesReturnsTrue()
-        {
-            var deletionConfirmer = new SelectedConnectionDeletionConfirmer(MockClickYes);
-            Assert.That(deletionConfirmer.Confirm(_testConnectionInfo), Is.True);
-        }
+    private DialogResult MockClickYes(string promptMessage, string title, MessageBoxButtons buttons,
+                                      MessageBoxIcon icon)
+    {
+        return DialogResult.Yes;
+    }
 
-        [Test]
-        public void ClickingNoReturnsFalse()
-        {
-            var deletionConfirmer = new SelectedConnectionDeletionConfirmer(MockClickNo);
-            Assert.That(deletionConfirmer.Confirm(_testConnectionInfo), Is.False);
-        }
-
-        private DialogResult MockClickYes(string promptMessage, string title, MessageBoxButtons buttons, MessageBoxIcon icon)
-        {
-            return DialogResult.Yes;
-        }
-
-        private DialogResult MockClickNo(string promptMessage, string title, MessageBoxButtons buttons, MessageBoxIcon icon)
-        {
-            return DialogResult.No;
-        }
+    private DialogResult MockClickNo(string promptMessage, string title, MessageBoxButtons buttons, MessageBoxIcon icon)
+    {
+        return DialogResult.No;
     }
 }

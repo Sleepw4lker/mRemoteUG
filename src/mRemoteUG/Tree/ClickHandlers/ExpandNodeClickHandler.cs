@@ -1,28 +1,29 @@
-﻿using System;
 using mRemoteUG.Connection;
 using mRemoteUG.Container;
 using mRemoteUG.UI.Controls;
 
 
-namespace mRemoteUG.Tree
+namespace mRemoteUG.Tree;
+
+public class ExpandNodeClickHandler : ITreeNodeClickHandler<ConnectionInfo>
 {
-    public class ExpandNodeClickHandler : ITreeNodeClickHandler<ConnectionInfo>
+    private readonly IConnectionTree _connectionTree;
+
+    public ExpandNodeClickHandler(IConnectionTree connectionTree)
     {
-        private readonly IConnectionTree _connectionTree;
+        ArgumentNullException.ThrowIfNull(connectionTree);
 
-        public ExpandNodeClickHandler(IConnectionTree connectionTree)
+        _connectionTree = connectionTree;
+    }
+
+    public void Execute(ConnectionInfo clickedNode)
+    {
+        var clickedNodeAsContainer = clickedNode as ContainerInfo;
+        if (clickedNodeAsContainer == null)
         {
-            if (connectionTree == null)
-                throw new ArgumentNullException(nameof(connectionTree));
-
-            _connectionTree = connectionTree;
+            return;
         }
 
-        public void Execute(ConnectionInfo clickedNode)
-        {
-            var clickedNodeAsContainer = clickedNode as ContainerInfo;
-            if (clickedNodeAsContainer == null) return;
-            _connectionTree.ToggleExpansion(clickedNodeAsContainer);
-        }
+        _connectionTree.ToggleExpansion(clickedNodeAsContainer);
     }
 }

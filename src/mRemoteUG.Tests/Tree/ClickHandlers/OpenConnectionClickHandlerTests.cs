@@ -1,51 +1,52 @@
-﻿using System;
 using mRemoteUG.Connection;
 using mRemoteUG.Container;
 using mRemoteUG.Tree;
+
 using NSubstitute;
+
 using NUnit.Framework;
 
 
-namespace mRemoteUG.Tests.Tree
+namespace mRemoteUG.Tests.Tree;
+
+public class OpenConnectionClickHandlerTests
 {
-    public class OpenConnectionClickHandlerTests
+    // Rebuilt per test in Setup: a substitute records every call it receives.
+    private OpenConnectionClickHandler _clickHandler = null!;
+    private IConnectionInitiator _connectionInitiator = null!;
+
+    [SetUp]
+    public void Setup()
     {
-        private OpenConnectionClickHandler _clickHandler;
-        private IConnectionInitiator _connectionInitiator;
+        _connectionInitiator = Substitute.For<IConnectionInitiator>();
+        _clickHandler = new OpenConnectionClickHandler(_connectionInitiator);
+    }
 
-        [SetUp]
-        public void Setup()
-        {
-            _connectionInitiator = Substitute.For<IConnectionInitiator>();
-            _clickHandler = new OpenConnectionClickHandler(_connectionInitiator);
-        }
+    [Test]
+    public void ConnectionOpened()
+    {
+        var connectionInfo = new ConnectionInfo();
+        _clickHandler.Execute(connectionInfo);
+        _connectionInitiator.Received().OpenConnection(connectionInfo);
+    }
 
-        [Test]
-        public void ConnectionOpened()
-        {
-            var connectionInfo = new ConnectionInfo();
-            _clickHandler.Execute(connectionInfo);
-            _connectionInitiator.Received().OpenConnection(connectionInfo);
-        }
+    [Test]
+    public void DoesNothingWhenGivenContainerInfo()
+    {
+        _clickHandler.Execute(new ContainerInfo());
+        _connectionInitiator.DidNotReceiveWithAnyArgs().OpenConnection(new ConnectionInfo());
+    }
 
-        [Test]
-        public void DoesNothingWhenGivenContainerInfo()
-        {
-            _clickHandler.Execute(new ContainerInfo());
-            _connectionInitiator.DidNotReceiveWithAnyArgs().OpenConnection(new ConnectionInfo());
-        }
+    [Test]
+    public void ExceptionThrownWhenConstructorGivenNullArg()
+    {
+        // ReSharper disable once ObjectCreationAsStatement
+        Assert.Throws<ArgumentNullException>(() => new OpenConnectionClickHandler(null!));
+    }
 
-        [Test]
-        public void ExceptionThrownWhenConstructorGivenNullArg()
-        {
-            // ReSharper disable once ObjectCreationAsStatement
-            Assert.Throws<ArgumentNullException>(() => new OpenConnectionClickHandler(null));
-        }
-
-        [Test]
-        public void ThrowWhenExecuteGivenNullArg()
-        {
-            Assert.Throws<ArgumentNullException>(() => _clickHandler.Execute(null));
-        }
+    [Test]
+    public void ThrowWhenExecuteGivenNullArg()
+    {
+        Assert.Throws<ArgumentNullException>(() => _clickHandler.Execute(null!));
     }
 }

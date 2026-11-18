@@ -13,6 +13,13 @@
          explained where it is set. Suppressed by name rather than with SuppressValidation, so
          every other ICE still runs on a machine that can reach the Windows Installer service. -->
     <SuppressIces>ICE61</SuppressIces>
+
+    <!-- Every WiX and heat warning fails the build: the WiX SDK hands this to the wix and heat
+         tasks. A warning that has to stay is suppressed by its ID in SuppressSpecificWarnings,
+         with the reason beside it, and recorded in docs/conventions/csharp.md. It does not reach
+         MSBuild's own Warning task, which has MSBuildTreatWarningsAsErrors for that - so the
+         SayWhenValidationIsSuppressed warning below stays a warning. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -26,17 +33,27 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
-    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
-    <PackageReference Include="WixToolset.Heat" Version="5.0.2" />
+    <PackageReference Include="WixToolset.UI.wixext" />
+    <PackageReference Include="WixToolset.Util.wixext" />
+    <PackageReference Include="WixToolset.Heat" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Replaces the old heat.exe PreBuildEvent: harvests the mRemoteUG build output into a component group. -->
+    <!-- Replaces the old heat.exe PreBuildEvent: harvests the mRemoteUG build output into a component group.
+
+         SuppressRegistry (heat -sreg): registry harvesting is heat's attempt to turn each .dll
+         and .exe into the registry entries a self-registering COM server would write - regasm's
+         for an assembly, DllRegisterServer's for a native DLL. Nothing in the payload is a COM
+         server to register: the application is a COM client of the RDP ActiveX control, which
+         Windows registers. Under dotnet build, heat runs on .NET, where that assembly inspection
+         (a reflection-only load) is not supported, so every assembly raised HEAT5151 and
+         contributed nothing. Measured: the harvested fragment is byte-identical with and
+         without it. -->
     <HarvestDirectory Include="$(HarvestPath)"
                        ComponentGroupName="MandatoryComponents"
                        DirectoryRefId="INSTALLDIR"
                        SuppressRootDirectory="true"
+                       SuppressRegistry="true"
                        PreprocessorVariable="var.HarvestPath"
                        Transforms="Filters\Harvest_Filter.xslt" />
   </ItemGroup>
@@ -60,8 +77,9 @@
        built" looking exactly like "the MSI was checked", which this stops.
 
        A warning rather than a message because a CI log is thousands of lines and this belongs in
-       the summary. It cannot fail the build - nothing sets TreatWarningsAsErrors here, and the
-       WarningsAsErrors in Directory.Build.props is scoped to nullable. -->
+       the summary. It cannot fail the build - the TreatWarningsAsErrors above reaches only the wix
+       and heat tasks, not this one (measured with MSBuild 18.9), and the WarningsAsErrors in
+       Directory.Build.props is scoped to nullable. -->
   <Target Name="SayWhenValidationIsSuppressed" BeforeTargets="Build"
           Condition=" '$(SuppressValidation)' == 'true' ">
     <Warning Text="MSI validation (ICE) is suppressed, so no ICE has checked this package. Build on a machine that can reach the Windows Installer service, without -p:SuppressValidation=true, to run it." />

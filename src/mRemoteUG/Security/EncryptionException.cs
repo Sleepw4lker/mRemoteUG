@@ -1,18 +1,13 @@
-#nullable enable
-using System;
+namespace mRemoteUG.Security;
 
-
-namespace mRemoteUG.Security
+[Serializable]
+public class EncryptionException : Exception
 {
-    [Serializable]
-    public class EncryptionException : Exception
+    public EncryptionException(string message) : base(message)
     {
-        public EncryptionException(string message) : base(message)
-        {
-        }
+    }
 
-        public EncryptionException(string message, Exception exception) : base(message, exception)
-        {
-        }
+    public EncryptionException(string message, Exception exception) : base(message, exception)
+    {
     }
 }

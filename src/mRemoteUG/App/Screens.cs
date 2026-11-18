@@ -1,27 +1,25 @@
-using System.Windows.Forms;
 using mRemoteUG.UI.Forms;
 
-namespace mRemoteUG.App
+namespace mRemoteUG.App;
+
+public static class Screens
 {
-    public static class Screens
+    public static void SendFormToScreen(Screen screen)
     {
-        public static void SendFormToScreen(Screen screen)
+        FrmMain frmMain = FrmMain.Default;
+        bool wasMax = false;
+
+        if (frmMain.WindowState == FormWindowState.Maximized)
         {
-            var frmMain = FrmMain.Default;
-            var wasMax = false;
+            wasMax = true;
+            frmMain.WindowState = FormWindowState.Normal;
+        }
 
-            if (frmMain.WindowState == FormWindowState.Maximized)
-            {
-                wasMax = true;
-                frmMain.WindowState = FormWindowState.Normal;
-            }
+        frmMain.Location = screen.Bounds.Location;
 
-            frmMain.Location = screen.Bounds.Location;
-
-            if (wasMax)
-            {
-                frmMain.WindowState = FormWindowState.Maximized;
-            }
+        if (wasMax)
+        {
+            frmMain.WindowState = FormWindowState.Maximized;
         }
     }
 }

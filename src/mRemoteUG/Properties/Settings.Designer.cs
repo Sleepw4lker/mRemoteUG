@@ -758,6 +758,18 @@ namespace mRemoteUG {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool InhDefaultRedirectClipboard {
+            get {
+                return ((bool)(this["InhDefaultRedirectClipboard"]));
+            }
+            set {
+                this["InhDefaultRedirectClipboard"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool InhDefaultRedirectDiskDrives {
             get {
                 return ((bool)(this["InhDefaultRedirectDiskDrives"]));

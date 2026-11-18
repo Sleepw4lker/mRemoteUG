@@ -1,5 +1,6 @@
 ---
 date: 2026-09-22
+status: accepted
 ---
 
 # Take fonts from Windows, and leave AutoScaleDimensions alone
@@ -14,8 +15,9 @@ setting a font opts that control out of inheritance.
 
 The decision worth recording is the one that looks like an oversight:
 
-**`AutoScaleDimensions` were deliberately not touched.** Thirteen forms declare
-`AutoScaleDimensions = 6F, 13F` while running at 9pt, which reads like a bug. It is not. **The
+**`AutoScaleDimensions` were deliberately not touched.** Thirteen forms declared
+`AutoScaleDimensions = 6F, 13F` at the time (seventeen designer files do now, the two corrected
+below included) while running at 9pt, which reads like a bug. It is not. **The
 declared value is the font the layout was *authored* against, not the runtime font.** Those
 forms have been scaled ×1.167/×1.154 ever since .NET Core changed the default font, and that
 scaled result is what ships and looks right. "Correcting" them to `7F, 15F` shrinks them about
@@ -42,10 +44,14 @@ Consequences that constrain future work:
 - **`--selftest --largefont`** exists because of this: it calls `Application.SetDefaultFont`
   before any control exists, which is the *only* way to test a larger system font. A font
   assigned after construction does not re-run the auto-scale pass, so the factor comes out 1.0
-  and only auto-sizing controls move. Known finding from it: `AboutWindow` and `ConfigWindow`
-  hit the screen edge at 13.5pt rather than scaling.
+  and only auto-sizing controls move. Known finding from it at the time: `AboutWindow` and
+  `ConfigWindow` hit the screen edge at 13.5pt rather than scaling. `AboutWindow` has since gone,
+  replaced by a task dialog (ADR-0012).
 
 The anisotropy behind all of this — WinForms scales controls by the *font* metric while
 `LogicalToDeviceUnits` scales by the *DPI* — and the measured baselines are in
 [docs/platform-findings.md](../platform-findings.md). It is not theoretical; it is what broke
 the message box and led to [ADR-0012](0012-task-dialog-on-comctl32.md).
+
+*History: written 2026-09-22; corrected 2026-10-07 - the form count and `AboutWindow`, which
+ADR-0012 removed, are marked as at the time.*

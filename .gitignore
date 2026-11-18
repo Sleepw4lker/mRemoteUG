@@ -281,3 +281,5 @@ src/mRemoteUG.Installer/Resources/License.rtf
 # gh-pages info
 runlocal.bat
 /_site
+# Stryker.NET output of a local mutation run (docs/conventions/csharp.md, "Mutation testing").
+StrykerOutput/

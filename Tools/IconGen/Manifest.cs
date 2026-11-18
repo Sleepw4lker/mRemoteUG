@@ -78,17 +78,17 @@ public sealed class Manifest
               .Concat(WindowIcons.Select(w => (w, Shape.WindowIcon)))
               .Concat(ConnectionIcons.Select(c => (c, Shape.ConnectionIcon)));
 
+    private static readonly JsonSerializerOptions s_options = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+
     public static Manifest Load(string path)
     {
-        var options = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true,
-            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
-        };
-
-        return JsonSerializer.Deserialize<Manifest>(File.ReadAllText(path), options)
+        return JsonSerializer.Deserialize<Manifest>(File.ReadAllText(path), s_options)
                ?? throw new InvalidDataException($"{path} deserialized to null.");
     }
 }

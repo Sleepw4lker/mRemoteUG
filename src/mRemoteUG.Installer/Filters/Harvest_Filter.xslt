@@ -8,6 +8,9 @@ xmlns:wix="http://wixtoolset.org/schemas/v4/wxs">
       <xsl:apply-templates select="@*|node()"/>
     </xsl:copy>
   </xsl:template>
+  <!-- Drops every .xml file, which is what keeps mRemoteUG.xml out of the package: the build writes
+       it beside mRemoteUG.dll since GenerateDocumentationFile is on (Directory.Build.props), and
+       build.yml's "Check what the package installs" fails a package that carries it. -->
   <xsl:key name="service-search" match="wix:Component[contains(wix:File/@Source, '.xml')]" use="@Id" />
   <xsl:key name="service-search" match="wix:Component[contains(wix:File/@Source, 'app.config')]" use="@Id" />
   <xsl:key name="service-search" match="wix:Component[contains(wix:File/@Source, 'vshost')]" use="@Id" />

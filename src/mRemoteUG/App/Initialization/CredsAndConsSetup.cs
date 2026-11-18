@@ -1,18 +1,21 @@
-﻿using System.IO;
 using mRemoteUG.Config.Connections;
+using mRemoteUG.Connection;
 
-namespace mRemoteUG.App.Initialization
+namespace mRemoteUG.App.Initialization;
+
+public class CredsAndConsSetup
 {
-	public class CredsAndConsSetup
+    public static void LoadCredsAndCons()
     {
-        public void LoadCredsAndCons()
+        _ = new SaveConnectionsOnEdit(Runtime.ConnectionsService);
+
+        if (Settings.Default.FirstStart
+            && !Settings.Default.LoadConsFromCustomLocation
+            && !File.Exists(ConnectionsService.GetStartupConnectionFileName()))
         {
-            new SaveConnectionsOnEdit(Runtime.ConnectionsService);
-
-            if (Settings.Default.FirstStart && !Settings.Default.LoadConsFromCustomLocation && !File.Exists(Runtime.ConnectionsService.GetStartupConnectionFileName()))
-                Runtime.ConnectionsService.NewConnectionsFile(Runtime.ConnectionsService.GetStartupConnectionFileName());
-
-            Runtime.LoadConnections();
+            Runtime.ConnectionsService.NewConnectionsFile(ConnectionsService.GetStartupConnectionFileName());
         }
+
+        Runtime.LoadConnections();
     }
 }

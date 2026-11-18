@@ -1,6 +1,6 @@
 ---
 date: 2026-09-24
-status: superseded by ADR-0030 (proposed)
+status: superseded by ADR-0030
 ---
 
 # Build every push on Forgejo, and move the version only on a release tag

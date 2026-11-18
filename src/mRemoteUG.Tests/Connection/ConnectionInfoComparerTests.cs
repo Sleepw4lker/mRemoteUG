@@ -1,42 +1,50 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
+
 using mRemoteUG.Connection;
+
 using NUnit.Framework;
 
 
-namespace mRemoteUG.Tests.Connection
+namespace mRemoteUG.Tests.Connection;
+
+public class ConnectionInfoComparerTests
 {
-    public class ConnectionInfoComparerTests
+    private readonly ConnectionInfo _con1 = new() { Name = "a" };
+    private readonly ConnectionInfo _con2 = new() { Name = "b" };
+
+    [Test]
+    public void SortAscendingOnName()
     {
-        private ConnectionInfo _con1;
-        private ConnectionInfo _con2;
-
-        [OneTimeSetUp]
-        public void OnetimeSetup()
+        var comparer = new ConnectionInfoComparer<string>(node => node.Name)
         {
-            _con1 = new ConnectionInfo { Name = "a" };
-            _con2 = new ConnectionInfo { Name = "b" };
-        }
+            SortDirection = ListSortDirection.Ascending
+        };
+        int compareReturn = comparer.Compare(_con1, _con2);
+        Assert.That(compareReturn, Is.Negative);
+    }
 
-        [Test]
-        public void SortAscendingOnName()
+    [Test]
+    public void SortDescendingOnName()
+    {
+        var comparer = new ConnectionInfoComparer<string>(node => node.Name)
         {
-            var comparer = new ConnectionInfoComparer<string>(node => node.Name)
-            {
-                SortDirection = ListSortDirection.Ascending
-            };
-            var compareReturn = comparer.Compare(_con1, _con2);
-            Assert.That(compareReturn, Is.Negative);
-        }
+            SortDirection = ListSortDirection.Descending
+        };
+        int compareReturn = comparer.Compare(_con1, _con2);
+        Assert.That(compareReturn, Is.Positive);
+    }
 
-        [Test]
-        public void SortDescendingOnName()
+    [TestCase(ListSortDirection.Ascending)]
+    [TestCase(ListSortDirection.Descending)]
+    public void NullsSortFirstWithoutReachingTheSortExpression(ListSortDirection direction)
+    {
+        var comparer = new ConnectionInfoComparer<string>(node => node.Name) { SortDirection = direction };
+
+        Assert.Multiple(() =>
         {
-            var comparer = new ConnectionInfoComparer<string>(node => node.Name)
-            {
-                SortDirection = ListSortDirection.Descending
-            };
-            var compareReturn = comparer.Compare(_con1, _con2);
-            Assert.That(compareReturn, Is.Positive);
-        }
+            Assert.That(comparer.Compare(null, _con1), Is.Negative);
+            Assert.That(comparer.Compare(_con1, null), Is.Positive);
+            Assert.That(comparer.Compare(null, null), Is.Zero);
+        });
     }
 }

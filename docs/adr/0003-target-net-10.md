@@ -1,5 +1,6 @@
 ---
 date: 2026-09-22
+status: accepted
 ---
 
 # Target .NET 10, SDK-style, and drop the Portable edition
@@ -11,35 +12,41 @@ bitness has to match the control's.
 
 Two things about the migration are load-bearing and easy to undo by accident:
 
-**`GenerateAssemblyInfo` is `false`**, so the SDK emits no assembly attributes and two of them
-must stay hand-written in `Properties/AssemblyInfo.cs`:
+**`GenerateAssemblyInfo` is narrowed to the version.** It was `false` at the migration, so the SDK
+emitted no assembly attributes at all. Since [ADR-0030](0030-derive-the-version-from-git-tags.md)
+it is `true` but limited to the three version attributes (`Directory.Build.props`); every other
+attribute is turned off there and must stay hand-written in `Properties/AssemblyInfo.cs`. Two of
+them matter here:
 
-- `AssemblyCompany("")` — an empty company name is what produces the `user.config` directory
-  layout the existing installed base already has. Filling it in relocates every user's
-  settings.
+- `AssemblyCompany` — together with `AssemblyProduct` it shapes the `user.config` directory
+  layout. It was empty at the migration, which is the layout the installed base had then. The
+  rename ([ADR-0024](0024-rename-to-mremoteug.md)) set it to `Uwe Gradenegger` and moved that
+  directory on purpose, with no migration; changing it again relocates every user's settings.
 - `[assembly: SupportedOSPlatform("windows10.0.22000.0")]` — without it every WinForms and
   registry call raises CA1416, which is 8,000-plus warnings. The version is the Windows 11
   baseline; see the amendment at the end of this record for why it is spelled here rather
   than in the target framework.
 
-**The version is pinned, in two places, and only one of them is effective.** The old
-`1.76.20.*` wildcard is a hard error under deterministic builds, so it had to become a literal.
-But because `GenerateAssemblyInfo` is false, the SDK emits no version attributes, so
-`<Version>`/`<FileVersion>`/`<AssemblyVersion>` in `Directory.Build.props` do **not** reach the
-built assembly — `AssemblyVersion` and `AssemblyFileVersion` in `Properties\AssemblyInfo.cs` are
-what land in it. The props values are kept in step deliberately, but editing only them changes
-nothing. **Change both.**
+**The version is computed, not written down.** The old `1.76.20.*` wildcard is a hard error
+under deterministic builds, so at the migration it became a literal, pinned in two places of
+which only `AssemblyInfo.cs` reached the built assembly. Since ADR-0030, `ComputeVersionFromGit`
+in `Directory.Build.props` derives it from the git tags and the SDK emits it. The `AssemblyInfo.cs`
+files must not declare a version: a hand-written attribute would win over the computed one, and
+`VersioningTests` fails if one reappears.
 
 That matters because of what reads it: the MSI takes its `ProductVersion` from
 `!(bind.FileVersion.MainExeFile)` (`Includes\Config.wxi`), i.e. off the built executable, and so
-off `AssemblyInfo.cs`. `ProductCode` is `*` and the `UpgradeCode` is fixed, so raising the version
-is what makes an installed build upgrade in place rather than sit alongside the old one. The
-version also stamps the `user.config` directory, but settings still carry over: the legacy
-importer enumerates `mRemoteNG*` directories by last-write time and does not compare versions.
+off the computed version. `ProductCode` is `*` and the `UpgradeCode` is fixed, so raising the
+version is what makes an installed build upgrade in place rather than sit alongside the old one.
+The version also stamps the `user.config` directory, but settings still carry over:
+`Settings.Default.Upgrade()` copies the previous version's values forward on the first run of a
+new one (`SettingsLoader`). The legacy importer that did this at the time, by enumerating
+`mRemoteNG*` directories, was deleted with the rename (ADR-0024).
 
 Also in `Directory.Build.props`: `AppendTargetFrameworkToOutputPath` is `false`, keeping output
-at `bin\<Configuration>\`. The WiX `HarvestPath`, `MainExeFragment.wxs`, the release scripts
-and two tests all resolve that exact layout.
+at `bin\<Configuration>\`. The WiX `HarvestPath`, `MainExeFragment.wxs` and two tests all
+resolve that exact layout, as the release scripts did before they were deleted
+([ADR-0016](0016-wix-5-and-the-desktop-runtime.md)).
 
 **The Portable edition was dropped in the same pass**, along with its `PORTABLE` compile
 constant; the projects now build only Debug and Release, and the solution adds one configuration
@@ -68,10 +75,17 @@ traps are in [docs/platform-findings.md](../platform-findings.md).
   `TargetPlatformVersion` is 7.0, which it is, because the target framework is a bare
   `net10.0-windows`.
 
-The hand-written attribute is exactly what the SDK emits from that property, and because
-`GenerateAssemblyInfo` is `false` nothing competes with it. It was verified to work rather than
+The hand-written attribute is exactly what the SDK emits from that property, and nothing may
+compete with it: since assembly info generation came back for the version (ADR-0030), the SDK's
+own `SupportedOSPlatform("Windows7.0")` is switched off by name, because beside this one CA1416
+went by 7.0 (measured 2026-10-07; `PlatformAttributeTests` pins it). It was verified to work rather than
 assumed: a throwaway method marked `[SupportedOSPlatform("windows10.0.22000.0")]` raises CA1416
 before the change and not after, so the analyzer honours the attribute and does **not** cap it
 against the project's `TargetPlatformMinVersion` of 7.0. Both assemblies carry it, because
-`mRemoteNGTests` references `mRemoteV1` and a mismatch would make every test a call into a
+the test project references the application (`src/mRemoteUG.Tests` and `src/mRemoteUG`, then
+`mRemoteNGTests` and `mRemoteV1`) and a mismatch would make every test a call into a
 higher-floor assembly.
+
+*History: written 2026-09-22; corrected 2026-10-07 - `GenerateAssemblyInfo`, the version and
+`AssemblyCompany` changed with ADR-0030 and ADR-0024, the legacy importer was deleted by
+ADR-0024, and the projects were renamed by ADR-0024.*

@@ -1,6 +1,6 @@
 ---
 date: 2026-10-01
-status: proposed
+status: accepted, amended by ADR-0038
 ---
 
 # Sign on the runner, against a signing server, and split the build to make room for it
@@ -112,30 +112,42 @@ against `http://timestamp.verisign.com/scripts/timstamp.dll`, dead for years. Th
 that same path mandatory and therefore **threw on every build** — visibly, in the log, for as
 long as the fork has existed, without failing anything.
 
-## What this still does not prove
+## What the verify step demands
 
-The signing service is available only to CI, so the call against it is unproven anywhere
-else. What was proven before the first push, against a stand-in signer driven
-by a throwaway self-signed certificate: the transport round-trips a PE byte-exactly from
-a path containing a space; the signed file comes back to exactly the path that went in, under its
-own name; the package built afterwards carries the signed payload, read back out of its `File`
-table; and the verify step fails, by name, when one file is put back unsigned.
+Each of the six signed files must be signed by the certificate whose thumbprint a repository
+variable holds, must validate, and must carry a timestamp. Any one missing fails the run, by
+file. A variable rather than a literal, because signing always uses the certificate the signing
+service holds now: after a renewal every build needs the new value, a re-run of an old tag
+included, and that is a settings change rather than a commit.
 
-`Get-AuthenticodeSignature` reports `UnknownError` — *"a certificate chain processed, but
-terminated in a root certificate which is not trusted by the trust provider"* — for a signature
-whose issuer the checking machine does not trust. That is a statement about the machine, not the
-file, so **the verify step passes on a present signature rather than on a valid one** and fails
-only on `NotSigned` and `HashMismatch`. Demanding `Valid` would make the step fail on any runner
-whose trust store lacks the issuing CA.
+This was first built to accept less. Against a stand-in certificate, `Get-AuthenticodeSignature`
+reports `UnknownError` - *"a certificate chain processed, but terminated in a root certificate
+which is not trusted by the trust provider"* - so the step passed on a present signature and
+failed only on `NotSigned` and `HashMismatch`. With the real certificate the runner reports
+`Valid` for every file, timestamped, so the chain is checkable there and is checked. A runner
+whose trust store lacked the root would now fail the build; that is the runner to fix.
+
+## What has been proven, and what has not
+
+Before the first push, against a stand-in signer driven by a throwaway self-signed certificate:
+the transport round-trips a PE byte-exactly from a path containing a space; the signed file comes
+back to exactly the path that went in, under its own name; the package built afterwards carries
+the signed payload, read back out of its `File` table; and the verify step fails, by name, when
+one file is put back unsigned, signed by another certificate, or not trusted.
+
+On the runner, with the real certificate: every file signed, `Valid`, by the expected signer, and
+timestamped, read from the log of the `v2.1.0` release build. The tightened step itself is
+exercised by every build from the commit that introduced it on.
 
 Two things remain observable only where a package can be installed: the signatures on the payload
 inside the package, which live in the embedded cab, and what the UAC prompt says the publisher
 is.
 
-**Amended 2026-10-01: the one unsigned copy this left in a CI workspace is gone.**
-`copy_release_installer.ps1` used to drop a copy of the package into `Release\` during the
-installer build — which is *before* the signing step, so that copy was the pre-signing one.
-Nothing read it there and CI takes the package from `src\mRemoteUG.Installer\bin\Release\en-US`
-directly, so it was a trap rather than a fault. The script and the chain around it are gone; the
-wixproj now copies the package itself, and only when `$(BuildNumber)` is 0, which is a local
-build.
+There used to be one unsigned copy of the package in a CI workspace: `copy_release_installer.ps1`
+dropped it into `Release\` during the installer build, before the signing step. Nothing read it,
+so it was a trap rather than a fault; the script is gone, and the wixproj copies the package
+itself, only for a local build (`$(BuildNumber)` 0).
+
+*History: written 2026-10-01. Amended the same day for the unsigned copy, and 2026-10-07 for the
+verify step's signer, chain and timestamp checks. This text is the current state; the amendments
+are folded into it.*

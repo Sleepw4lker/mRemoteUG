@@ -1,5 +1,6 @@
 ---
 date: 2026-09-25
+status: accepted
 ---
 
 # Replace Silk with Fluent, rasterized at build time and committed
@@ -18,7 +19,9 @@ Fluent Icons font that ships with Windows — that licence does not allow redist
 ## Rasterized at build time, not rendered at run time
 
 Fluent ships SVG and WinForms wants bitmaps, so something has to rasterize. The decision is that
-it happens **once, in a tool, and the PNGs are committed** — 685 files across 90 names.
+it happens **once, in a tool, and the PNGs are committed** — 685 files across 90 names when this
+was written; 504 PNGs across 63 names under `Resources/Glyphs`, plus six `.ico` files, on
+2026-10-07.
 
 The alternative was a runtime SVG renderer, either a NuGet one or a path parser written here. Both
 were rejected for the same reason, and it is not the obvious one: they are not meaningfully better.
@@ -135,8 +138,8 @@ HandelGothic fonts that the build never referenced.
 It is **replaced by the defaults rather than by a new mark**, which is the part worth
 recording because it looks like something half-finished:
 
-- No `<ApplicationIcon>`. An executable with no icon resource is shown by Windows with its
-  default application icon.
+- No `<ApplicationIcon>` (reversed by the amendment below). An executable with no icon resource
+  is shown by Windows with its default application icon.
 - No `Form.Icon` on the main or session windows. Measured before relying on it: a `Form` with
   nothing assigned still reports a real 32x32 icon, so this is a default rather than a blank
   title bar.
@@ -155,7 +158,7 @@ same question as the "Windows" connection icon above: the answer is not to find 
 logo. `GlyphTests.NoUpstreamBrandMarkIsEmbedded` scans the manifest resource names so that
 reintroducing it through any of the three globs fails the build rather than shipping.
 
-**Proposed 2026-09-26, not yet accepted: the executable has an icon again, and it is generated.**
+**Amended 2026-09-26: the executable has an icon again, and it is generated.**
 
 The amendment above says no `<ApplicationIcon>` and nothing replacing it. One half of that has
 stopped being true, and the reason is worth the paragraph.

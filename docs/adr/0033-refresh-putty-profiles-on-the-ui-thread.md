@@ -1,6 +1,6 @@
 ---
 date: 2026-10-01
-status: proposed
+status: accepted
 ---
 
 # Refresh the PuTTY Profiles on the UI thread, and serialise the registry notification

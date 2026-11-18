@@ -1,40 +1,28 @@
-﻿using mRemoteUG.Connection;
+using mRemoteUG.Connection;
 using mRemoteUG.Container;
 using mRemoteUG.Tree;
+
 using NUnit.Framework;
 
 
-namespace mRemoteUG.Tests.Tree
+namespace mRemoteUG.Tests.Tree;
+
+public class ConnectionTreeModelTests
 {
-    public class ConnectionTreeModelTests
+    private readonly ConnectionTreeModel _connectionTreeModel = new();
+
+    [Test]
+    public void GetChildListProvidesAllChildren()
     {
-        private ConnectionTreeModel _connectionTreeModel;
-
-        [SetUp]
-        public void Setup()
-        {
-            _connectionTreeModel = new ConnectionTreeModel();
-        }
-
-        [TearDown]
-        public void Teardown()
-        {
-            _connectionTreeModel = null;
-        }
-
-        [Test]
-        public void GetChildListProvidesAllChildren()
-        {
-            var root = new ContainerInfo();
-            var folder1 = new ContainerInfo();
-            var folder2 = new ContainerInfo();
-            var con1 = new ConnectionInfo();
-            root.AddChild(folder1);
-            folder1.AddChild(folder2);
-            root.AddChild(con1);
-            _connectionTreeModel.AddRootNode(root);
-            var connectionList = _connectionTreeModel.GetRecursiveChildList(root);
-            Assert.That(connectionList, Is.EquivalentTo(new[] {folder1,folder2,con1}));
-        }
+        var root = new ContainerInfo();
+        var folder1 = new ContainerInfo();
+        var folder2 = new ContainerInfo();
+        var con1 = new ConnectionInfo();
+        root.AddChild(folder1);
+        folder1.AddChild(folder2);
+        root.AddChild(con1);
+        _connectionTreeModel.AddRootNode(root);
+        IEnumerable<ConnectionInfo> connectionList = ConnectionTreeModel.GetRecursiveChildList(root);
+        Assert.That(connectionList, Is.EquivalentTo(new[] { folder1, folder2, con1 }));
     }
 }

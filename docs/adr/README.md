@@ -9,6 +9,10 @@ the fork's first four days (2026-09-20 to 2026-09-23). The `date:` in each recor
 decision was actually made, not when it was written down. Every factual claim was re-checked
 against the code at the time of writing.
 
+Every record states its status in its front matter: `accepted`, with how a later record changed
+it where one did (`accepted, amended by ADR-0002`), or `superseded by ADR-nnnn` once a later
+record replaces it. A new record is written in the pull request that makes the decision, and the maintainer's merge accepts it.
+
 Measured platform behaviour that constrains the code but is not itself a decision lives in
 [../platform-findings.md](../platform-findings.md). Project vocabulary is in
 [../../CONTEXT.md](../../CONTEXT.md).
@@ -28,14 +32,22 @@ Measured platform behaviour that constrains the code but is not itself a decisio
 |---|---|---|
 | [0003](0003-target-net-10.md) | Target .NET 10, SDK-style, and drop the Portable edition | 2026-09-22 |
 | [0004](0004-commit-the-mstsc-interop.md) | Commit the MSTSCLib interop assemblies instead of generating them | 2026-09-22 |
-| [0015](0015-purge-third-party-dependencies.md) | Reduce the runtime dependency set to log4net — *amended by 0019* | 2026-09-22 |
+| [0015](0015-purge-third-party-dependencies.md) | Reduce the runtime dependency set to one logging library — *amended by 0019* | 2026-09-22 |
 | [0016](0016-wix-5-and-the-desktop-runtime.md) | Build the installer with WiX 5 and require the .NET Desktop Runtime | 2026-09-22 |
 | [0025](0025-release-on-a-tag.md) | Build every push on Forgejo, and move the version only on a release tag - *superseded by 0030* | 2026-09-24 |
 | [0026](0026-generate-the-icons-at-build-time.md) | Replace Silk with Fluent, rasterized at build time and committed | 2026-09-25 |
 | [0027](0027-tint-the-glyphs-once-at-load.md) | Ship the glyphs colourless and tint them once, at load | 2026-09-25 |
-| [0030](0030-derive-the-version-from-git-tags.md) | Derive the version from the git tags, and release by tagging - *proposed, supersedes 0025* | 2026-09-29 |
-| [0032](0032-sign-on-the-signing-server.md) | Sign on the runner, against a signing server, and split the build to make room for it - *proposed, amends 0030* | 2026-10-01 |
-| [0035](0035-publish-releases-to-github-as-snapshots.md) | Publish each release to GitHub as a snapshot, not a mirror - *proposed, amends 0030* | 2026-10-07 |
+| [0030](0030-derive-the-version-from-git-tags.md) | Derive the version from the git tags, and release by tagging - *supersedes 0025* | 2026-09-29 |
+| [0032](0032-sign-on-the-signing-server.md) | Sign on the runner, against a signing server, and split the build to make room for it - *amends 0030, amended by 0038* | 2026-10-01 |
+| [0035](0035-publish-releases-to-github-as-snapshots.md) | Publish each release to GitHub as a snapshot, not a mirror - *amends 0030* | 2026-10-07 |
+| [0036](0036-agents-follow-the-organisations-working-agreement.md) | Agents follow the organisation's working agreement: prefixed branches, Conventional Commits, PRs opened by the agent - *amended by 0037, 0039, 0040* | 2026-10-21 |
+| [0037](0037-agents-record-changes-in-changelog-txt.md) | Agents record user-visible changes in `CHANGELOG.TXT`, under `Unreleased:` - *amends 0036* | 2026-10-21 |
+| [0038](0038-sign-with-this-repositorys-own-key.md) | Sign with this repository's own ssh key, and name the signing server in the forge's Actions variables - *amends 0032* | 2026-10-27 |
+| [0039](0039-powershell-follows-the-organisations-conventions.md) | PowerShell follows the organisation's conventions in full, linted in CI, with one exception for the git guard - *amends 0036* | 2026-11-09 |
+| [0040](0040-csharp-follows-the-organisations-conventions.md) | C# follows the organisation's conventions, brought in line one rule per PR, with three exceptions - *amends 0036* | 2026-11-09 |
+| [0041](0041-embed-the-symbols-in-the-application.md) | Embed the application's symbols in `mRemoteUG.dll` instead of shipping a `.pdb` | 2026-11-09 |
+| [0042](0042-mutation-testing-by-hand-with-stryker.md) | Run mutation testing with Stryker.NET, by hand, on a runner of its own - *amended by 0043* | 2026-11-09 |
+| [0043](0043-twelve-mutation-test-hosts.md) | Run twelve mutation test hosts on the performance runner - *amends 0042* | 2026-11-10 |
 
 ## Sessions and protocols
 
@@ -45,8 +57,9 @@ Measured platform behaviour that constrains the code but is not itself a decisio
 | [0006](0006-floor-the-rdp-client-at-v11.md) | Drive the RDP control through `IMsRdpClient10`, floored at v11 | 2026-09-22 |
 | [0023](0023-host-stock-putty-as-a-maximised-child.md) | Host stock PuTTY as a maximised, non-child window: PuTTY reinstates its caption on every `SIZE_RESTORED`, and a child window cannot take the keyboard — *amended by 0031* | 2026-09-24 |
 | [0028](0028-declare-the-display-scale-before-connecting.md) | Declare the display scale before connecting, through the extended-settings property bag | 2026-09-29 |
-| [0031](0031-retry-the-putty-chrome-strip-once.md) | Retry the PuTTY chrome strip once, after reading the result back: `SetParent` can itself trigger the `SIZE_RESTORED` that puts the caption back — *proposed, amends 0023* | 2026-09-30 |
-| [0033](0033-refresh-putty-profiles-on-the-ui-thread.md) | Refresh the PuTTY Profiles on the UI thread, and serialise the registry notification: one PuTTY save raised the change event on 6–8 pool threads at once — *proposed* | 2026-10-01 |
+| [0031](0031-retry-the-putty-chrome-strip-once.md) | Retry the PuTTY chrome strip once, after reading the result back: `SetParent` can itself trigger the `SIZE_RESTORED` that puts the caption back — *amends 0023* | 2026-09-30 |
+| [0033](0033-refresh-putty-profiles-on-the-ui-thread.md) | Refresh the PuTTY Profiles on the UI thread, and serialise the registry notification: one PuTTY save raised the change event on 6–8 pool threads at once | 2026-10-01 |
+| [0044](0044-tell-hosted-putty-its-dpi.md) | Tell a hosted PuTTY its DPI with a `WM_DPICHANGED` of our own: Windows sends it to top-level windows only, and user32 copies its `RECT` across processes | 2026-11-18 |
 
 ## User interface
 
@@ -71,7 +84,7 @@ Measured platform behaviour that constrains the code but is not itself a decisio
 | [0020](0020-carry-the-exception-and-the-event-time.md) | Carry the exception and the event time to the log, instead of flattening them away | 2026-09-23 |
 | [0021](0021-log-unhandled-exceptions.md) | Log unhandled exceptions before the process goes down | 2026-09-23 |
 | [0022](0022-nullable-a-directory-at-a-time.md) | Enable nullable reference types a directory at a time, with the build as the ratchet — *amended by 0025* | 2026-09-24 |
-| [0034](0034-log-outside-the-roaming-profile.md) | Write the log under `%LOCALAPPDATA%`, keep settings under `%APPDATA%` — *proposed* | 2026-10-01 |
+| [0034](0034-log-outside-the-roaming-profile.md) | Write the log under `%LOCALAPPDATA%`, keep settings under `%APPDATA%` | 2026-10-01 |
 
 ## Writing a new one
 

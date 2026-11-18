@@ -23,20 +23,28 @@ public sealed class Catalogue
 
     public Catalogue()
     {
-        foreach (var style in new[] { "Regular", "Filled" })
+        foreach (string? style in new[] { "Regular", "Filled" })
         {
             var assembly = Assembly.Load($"Microsoft.FluentUI.AspNetCore.Components.Icons.{style}");
-            foreach (var type in assembly.GetTypes())
+            foreach (Type type in assembly.GetTypes())
             {
-                var container = type.DeclaringType;
+                Type? container = type.DeclaringType;
                 if (container is null || !container.Name.StartsWith("Size", StringComparison.Ordinal))
+                {
                     continue;
-                if (!int.TryParse(container.Name.AsSpan(4), out var size))
-                    continue;
+                }
 
-                var key = (style, type.Name);
-                if (!_icons.TryGetValue(key, out var bySize))
+                if (!int.TryParse(container.Name.AsSpan(4), out int size))
+                {
+                    continue;
+                }
+
+                (string style, string Name) key = (style, type.Name);
+                if (!_icons.TryGetValue(key, out SortedDictionary<int, Type>? bySize))
+                {
                     _icons[key] = bySize = new SortedDictionary<int, Type>();
+                }
+
                 bySize[size] = type;
             }
         }
@@ -45,7 +53,7 @@ public sealed class Catalogue
     public bool Has(string style, string name) => _icons.ContainsKey((style, name));
 
     public IReadOnlyCollection<int> SizesOf(string style, string name) =>
-        _icons.TryGetValue((style, name), out var bySize) ? bySize.Keys : [];
+        _icons.TryGetValue((style, name), out SortedDictionary<int, Type>? bySize) ? bySize.Keys : [];
 
     /// <summary>
     /// The source size to render a target from: the largest at or below it, else the smallest
@@ -53,9 +61,11 @@ public sealed class Catalogue
     /// </summary>
     public int SourceSizeFor(string style, string name, int target)
     {
-        var sizes = SizesOf(style, name);
+        IReadOnlyCollection<int> sizes = SizesOf(style, name);
         if (sizes.Count == 0)
+        {
             throw new InvalidOperationException($"{style}/{name} is not in the catalogue.");
+        }
 
         var atOrBelow = sizes.Where(s => s <= target).ToList();
         return atOrBelow.Count > 0 ? atOrBelow.Max() : sizes.Min();
@@ -64,8 +74,8 @@ public sealed class Catalogue
     /// <summary>The SVG inner markup for one icon at one of its own sizes.</summary>
     public string Content(string style, string name, int size)
     {
-        var type = _icons[(style, name)][size];
-        var instance = Activator.CreateInstance(type)
+        Type type = _icons[(style, name)][size];
+        object instance = Activator.CreateInstance(type)
                        ?? throw new InvalidOperationException($"Could not construct {type.FullName}.");
         return type.GetProperty("Content")?.GetValue(instance) as string
                ?? throw new InvalidOperationException($"{type.FullName} has no Content.");
@@ -84,16 +94,19 @@ public sealed class Catalogue
 
     private static int Distance(string a, string b)
     {
-        var previous = new int[b.Length + 1];
-        var current = new int[b.Length + 1];
-        for (var j = 0; j <= b.Length; j++) previous[j] = j;
+        int[] previous = new int[b.Length + 1];
+        int[] current = new int[b.Length + 1];
+        for (int j = 0; j <= b.Length; j++)
+        {
+            previous[j] = j;
+        }
 
-        for (var i = 1; i <= a.Length; i++)
+        for (int i = 1; i <= a.Length; i++)
         {
             current[0] = i;
-            for (var j = 1; j <= b.Length; j++)
+            for (int j = 1; j <= b.Length; j++)
             {
-                var substitute = previous[j - 1] +
+                int substitute = previous[j - 1] +
                     (char.ToLowerInvariant(a[i - 1]) == char.ToLowerInvariant(b[j - 1]) ? 0 : 1);
                 current[j] = Math.Min(Math.Min(current[j - 1] + 1, previous[j] + 1), substitute);
             }

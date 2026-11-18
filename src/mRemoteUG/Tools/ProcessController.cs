@@ -1,20 +1,31 @@
 using System.Diagnostics;
+
 using mRemoteUG.Tools.Cmdline;
 
-namespace mRemoteUG.Tools
+namespace mRemoteUG.Tools;
+
+public class ProcessController : IDisposable
 {
-	public class ProcessController
-	{
-		private readonly Process Process = new Process();
+    private readonly Process _process = new Process();
 
-		public bool Start(string fileName, CommandLineArguments arguments = null)
-		{
-			Process.StartInfo.UseShellExecute = false;
-			Process.StartInfo.FileName = fileName;
-			if (arguments != null)
-				Process.StartInfo.Arguments = arguments.ToString();
+    public bool Start(string fileName, CommandLineArguments? arguments = null)
+    {
+        _process.StartInfo.UseShellExecute = false;
+        _process.StartInfo.FileName = fileName;
+        if (arguments != null)
+        {
+            _process.StartInfo.Arguments = arguments.ToString();
+        }
 
-			return Process.Start();
-		}
-	}
+        return _process.Start();
+    }
+
+    /// <summary>
+    /// Releases this object's handle on the started process. The process itself keeps running.
+    /// </summary>
+    public void Dispose()
+    {
+        _process.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }

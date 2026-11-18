@@ -1,9 +1,11 @@
-using System.Windows.Forms;
 using NUnit.Framework;
 
+namespace mRemoteUG.Tests;
+
 /// <summary>
-/// Assembly-wide setup. Being in the global namespace makes NUnit run this once before every
-/// fixture in the assembly, whatever order they execute in.
+/// Assembly-wide setup. A SetUpFixture covers its own namespace and everything below it, and
+/// every fixture in the assembly is in mRemoteUG.Tests or below, so NUnit runs this once before
+/// every one of them, whatever order they execute in.
 /// </summary>
 /// <remarks>
 /// Several fixtures create real WinForms controls. Visual styles have to be enabled before the

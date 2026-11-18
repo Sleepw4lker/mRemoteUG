@@ -1,3 +1,132 @@
+2.2.0 (2026-11-18):
+
+Security:
+---------
+CSV export now leaves out the RD Gateway user name, password and domain when the export
+  excludes the user name, password or domain, as it already did for the connection's
+  own credentials. Earlier versions wrote the RD Gateway user name, password and domain
+  into every CSV export in clear text, even with those boxes unticked. Delete or check
+  CSV exports made with an earlier version, and change the RD Gateway passwords they
+  contained.
+
+Fixed:
+------
+A tab's right-click menu no longer shows two separator lines in a row (RDP tabs) or a
+  separator line at the top (PuTTY tabs).
+Renaming a panel opens the dialog with the panel's current name, as renaming a tab does. It used
+  to open empty. Cancel keeps the old name, even after the name in the dialog was edited.
+The menu of a tab that is not the active one now applies to the tab that was right-clicked. It
+  used to show the active tab's settings and apply the chosen action to the active tab. The
+  right-clicked tab stays in the background for Rename, Duplicate Tab, Reconnect and Disconnect;
+  Full Screen, Smart Size and PuTTY Settings switch to it first.
+Middle-clicking a tab that is not the active one closes that tab without switching to it. It used
+  to close the active tab instead, unless a PuTTY session or another program had the focus.
+A right- or middle-click on a tab no longer switches to that tab when a PuTTY session or another
+  program had the focus.
+With a PuTTY tab selected, coming back from another program with one click on the menu bar or a
+  toolbar button now works the first time. The click used to be lost and needed repeating.
+Right-clicking the empty space beside the connection tabs no longer opens the panel's Rename
+  menu, and right-clicking a connection tab no longer opens it after the tab menu. Rename stays
+  on the panel's own tab.
+An RDP session fills its tab once it has logged on, and again after it reconnects by itself, for
+  example when undocking a laptop also changes its network. A resize made while the session was
+  logging on or reconnecting used to be lost, leaving the session at its old size, with
+  scrollbars or a grey border, until the window was resized again.
+The default inheritance of Redirect clipboard, set under the default connection's inheritance,
+  is now kept when mRemoteUG closes. A change to it used to be lost, and every start logged an
+  error about it.
+Disconnect in the connection tree closes every open session of a connection. With a PuTTY
+  connection opened twice, for example through Duplicate Tab, it used to close only the first.
+Disconnect on a folder also closes the sessions in its sub-folders, as Connect on a folder
+  already opens them, and is offered when only a sub-folder has sessions open.
+An RDP session fills its tab after the window moves to a monitor with a different scaling, for
+  example when docking a laptop. It used to be left smaller than the tab, with a grey border
+  round it, or larger than the tab, cut off at the right and bottom or shown with scrollbars.
+A PuTTY session fills its tab after the window moves to a monitor with a different scaling. Its
+  last line used to be cut off, or a strip below it left empty, until the window was resized.
+An RDP session opened or reconnected after the window has moved to a monitor with a different
+  scaling now comes up at that monitor's scaling. It used to take the scaling of the monitor
+  mRemoteUG was started on, so its text could be too small or too large.
+An RDP session that drops and reconnects by itself is now logged: the reason, and each attempt.
+A PuTTY session's text follows the scaling of the monitor the window moves to, for example
+  when docking a laptop. It used to keep the size it was opened at until the session was
+  reconnected.
+The icons on the connection tabs stay sharp after the window moves to a monitor with a different
+  scaling. They used to keep the size they were opened at and be stretched to fit, which looked
+  blurry.
+A resize in the first moments after an RDP session connects or reconnects no longer makes the
+  session reconnect again. Against current Windows hosts that could switch the session to
+  resizing by reconnecting for the rest of its life.
+The "Send to" screen entry stays in the title-bar menu after a monitor is added or removed or the
+  resolution changes.
+mRemoteUG.exe /c C:\... (a path after a space) opens that connection file instead of silently
+  opening the default one. The same holds for /cons and for any value with a colon or equals sign.
+PuTTY sessions without an explicit SSH version are opened with SSH-2, as in PuTTY, instead of SSH-1.
+PuTTY sessions with a `+` in their name appear among the PuTTY profiles.
+A PuTTY path that points at a Chocolatey launcher (for example the putty.exe Chocolatey puts on
+  PATH) is now refused before anything is started, with a message saying how to find the real
+  putty.exe. Each connection attempt through it used to fail and leave a
+  separate PuTTY window open behind it, already logged in with the connection's user name and
+  password.
+PuTTY sessions with non-ASCII characters in their names, such as `€` or Cyrillic letters, appear
+  under their real name and open with the right settings.
+Connection file errors name the file. A connection that could not be loaded, a file format that
+  is too old or too new, and the password prompt for an encrypted file used to show an empty
+  file name; they now show the full path of the file.
+Importing a connection file that does not exist shows one error message instead of an
+  unrelated "connection file format no longer supported" dialog and a second error box.
+Importing a connection file protected with its own password asks for that password instead
+  of always failing. Cancelling the prompt skips that file; a wrong password reports the
+  import as failed.
+A connection file without a KdfIterations attribute now loads, read with 1000 iterations,
+  instead of failing with an error about a minimum of 1000. A file that declares a value
+  that is not a whole number from 1000 to 1,000,000 now fails to load with a message
+  naming the value and the allowed range.
+The third password entered when opening a password-protected connection file is now checked.
+  The prompt asked three times but refused the third answer even when it was right.
+With the root of the connection tree selected, Ctrl+Shift+C no longer connects to every
+  connection in the file and Ctrl+Up/Ctrl+Down no longer raise an error. The tree's keyboard
+  shortcuts now follow the same rules as its context menu.
+A save of the connection file that fails, for example because the disk is full or the file is
+  read-only, no longer empties the file or reports success; it says the file could not be saved.
+Setting a connection file password now refuses one that is too short, made only of spaces, or
+  not repeated identically, as the dialog's messages always said. A password of spaces used to
+  make every save empty the connection file.
+If the connection file cannot be loaded at startup, cancelling "Open a different file" or
+  "Create new" now returns to the choice instead of continuing without a connection file,
+  which ended the application at the next import or export.
+An interrupted save (a crash, a power cut) can no longer leave a half-written connection file.
+  The file is replaced only once the new content is completely written; exports get the same.
+Error and warning pop-ups from background work, for example a failed autosave, now open in
+  front of the main window. A save that keeps failing is reported once, not after every edit,
+  until a save succeeds again; the log still records every failure.
+After an import or an open that failed, changes were no longer saved at all: not automatically,
+  not with File > Save, not on exit, until another file was loaded. They are saved again.
+An empty connection file is now reported as empty, with the location of its newest backup,
+  instead of as an unsupported old format whose passwords could not be recovered. When there
+  is no backup, or backups are switched off, the message says so.
+A connection file that cannot be read, because access to it is denied or another program has it
+  locked, is no longer reported as an unsupported old format whose passwords cannot be
+  recovered. The message names the actual cause.
+
+Changed:
+--------
+Each connection tab is as wide as its own title. A long title is shortened with "…" and the full
+  title is shown when the mouse rests on the tab. Opening a connection with a long name used to
+  widen every tab to fit it, and the tabs stayed that wide after it was closed. Tabs are sized
+  again for the new scaling when the window moves to another monitor, and Rename Tab shows the
+  full title, with an "&" in it shown once.
+--selftest names its report after the run: mRemoteUG-selftest-<id>.log in
+  %LOCALAPPDATA%\mRemoteUG\, where <id> is the value of the new --selftest-id switch or,
+  without it, the process ID. Two self-tests on one machine at the same time no longer
+  overwrite each other's report or registry scratch key.
+Backups of the connection file are now always named with the Gregorian date, whatever
+  regional format Windows is set to. Under a Thai, Arabic (Saudi Arabia) or
+  Persian format the name used to carry that calendar's year, such as 2569, 1448 or 1405.
+  Older backups are now kept or deleted by when they were taken, read from the name, or
+  from the file's modified time when the name holds no plausible date. Under a Thai
+  format, a new backup no longer gets deleted on the next save in favour of older ones.
+
 2.1.0 (2026-10-07):
 
 The first release of mRemoteUG: a fork of mRemoteNG 1.76.20, cut down to a lean RDP

@@ -1,25 +1,28 @@
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
+
 using mRemoteUG.Connection;
 using mRemoteUG.Tree;
 using mRemoteUG.Tree.Root;
 
 
-namespace mRemoteUG.UI.Controls
+namespace mRemoteUG.UI.Controls;
+
+public interface IConnectionTree
 {
-    public interface IConnectionTree
-    {
-        ConnectionTreeModel ConnectionTreeModel { get; set; }
+    [DisallowNull]
+    ConnectionTreeModel? ConnectionTreeModel { get; set; }
 
-        ConnectionInfo SelectedConnection { get; }
+    ConnectionInfo? SelectedConnection { get; }
 
-        IEnumerable ExpandedObjects { get; set; }
+    [AllowNull]
+    IEnumerable ExpandedObjects { get; set; }
 
-        RootNodeInfo GetRootConnectionNode();
+    RootNodeInfo GetRootConnectionNode();
 
-        void InvokeExpand(object model);
+    void InvokeExpand(object? model);
 
-        void InvokeRebuildAll(bool preserveState);
+    void InvokeRebuildAll(bool preserveState);
 
-        void ToggleExpansion(object model);
-    }
+    void ToggleExpansion(object? model);
 }

@@ -1,5 +1,6 @@
 ---
 date: 2026-09-22
+status: accepted
 ---
 
 # Build the installer with WiX 5 and require the .NET Desktop Runtime
@@ -26,10 +27,13 @@ desktop application that follows the system's WinForms theming
 
 The consequence to remember is a coupling that is invisible from either side: the MSI reads
 `ProductVersion` off the built executable via `!(bind.FileVersion.MainExeFile)`, and the WiX
-`HarvestPath`, `MainExeFragment.wxs`, the release scripts and two tests all resolve
-`bin\<Configuration>\` with no target-framework subfolder. That is why
-`AppendTargetFrameworkToOutputPath` is `false` and why the version is a literal in
-`Directory.Build.props`. Changing either breaks the installer, not the build.
+`HarvestPath`, `MainExeFragment.wxs` and two tests all resolve `bin\<Configuration>\` with no
+target-framework subfolder, as the release scripts did when this was written. That is why
+`AppendTargetFrameworkToOutputPath` is `false`. Changing it breaks the installer, not the build.
+The version was a literal in `Directory.Build.props` for the same reason; since
+[ADR-0030](0030-derive-the-version-from-git-tags.md) it is derived from the git tags, and the MSI
+still reads it off the executable it stamped. The release scripts are gone too: their work is
+now MSBuild targets in `mRemoteUG.Installer.wixproj`, which take the version from `$(FileVersion)`.
 
 `e2f3cc8` removed the installer's dead Windows 7 conditions, consistent with the `supportedOS`
 entries dropped in [ADR-0010](0010-per-monitor-v2.md).
@@ -78,3 +82,6 @@ install a connection manager.
 
 `InstallerVersion` went from `200` to `500` in the same pass; 200 claimed a Windows 2000-era
 engine.
+
+*History: written 2026-09-22; corrected 2026-10-07 - the version is derived from git tags since
+ADR-0030, and the release scripts became MSBuild targets in the `.wixproj`.*

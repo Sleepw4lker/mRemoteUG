@@ -19,7 +19,9 @@ public static class IcoWriter
     public static byte[] Pack(IReadOnlyList<(int Size, byte[] Png)> frames)
     {
         if (frames.Count is 0 or > 255)
+        {
             throw new ArgumentOutOfRangeException(nameof(frames), frames.Count, "1..255 frames.");
+        }
 
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream);
@@ -29,8 +31,8 @@ public static class IcoWriter
         writer.Write((ushort)frames.Count);
 
         // Directory entries come first, so every frame's offset is past all of them.
-        var offset = 6 + (16 * frames.Count);
-        foreach (var (size, png) in frames)
+        int offset = 6 + (16 * frames.Count);
+        foreach ((int size, byte[]? png) in frames)
         {
             // 0 means 256 in this field, which is the only reason 256 fits in a byte.
             writer.Write((byte)(size >= 256 ? 0 : size));
@@ -44,8 +46,10 @@ public static class IcoWriter
             offset += png.Length;
         }
 
-        foreach (var (_, png) in frames)
+        foreach ((int _, byte[]? png) in frames)
+        {
             writer.Write(png);
+        }
 
         writer.Flush();
         return stream.ToArray();

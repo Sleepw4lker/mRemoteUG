@@ -1,3 +1,5 @@
+#Requires -Version 7.6
+
 <#
 .SYNOPSIS
     Fails if the committed artwork is not what the manifest currently describes.
@@ -18,14 +20,17 @@
     pwsh Tools/verify-icons.ps1
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '',
+    Justification = 'interactive developer tool, the console output is for the person running it')]
 [CmdletBinding()]
-param()
+param ()
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$repo = Split-Path -Parent $PSScriptRoot
+$repo = Split-Path -Path $PSScriptRoot -Parent
 
 Write-Host 'Re-rendering the icon set and comparing it with the tree...'
-& dotnet run --project (Join-Path $repo 'Tools/IconGen') -c Release -- --check
+& dotnet run --project (Join-Path -Path $repo -ChildPath 'Tools/IconGen') -c Release -- --check
 
 switch ($LASTEXITCODE) {
     0 { Write-Host 'Icons are in step with the manifest.' -ForegroundColor Green }

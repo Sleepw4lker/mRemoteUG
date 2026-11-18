@@ -1,25 +1,25 @@
-#nullable enable
 using mRemoteUG.Security.SymmetricEncryption;
 
-namespace mRemoteUG.Security.Factories
+namespace mRemoteUG.Security.Factories;
+
+public class CryptoProviderFactory : ICryptoProviderFactory
 {
-    public class CryptoProviderFactory : ICryptoProviderFactory
+    private readonly BlockCipherEngines _engine;
+    private readonly BlockCipherModes _mode;
+
+    public CryptoProviderFactory(BlockCipherEngines engine, BlockCipherModes mode)
     {
-        private readonly BlockCipherEngines _engine;
-        private readonly BlockCipherModes _mode;
+        _engine = engine;
+        _mode = mode;
+    }
 
-        public CryptoProviderFactory(BlockCipherEngines engine, BlockCipherModes mode)
+    public ICryptographyProvider Build()
+    {
+        if (_engine != BlockCipherEngines.AES || _mode != BlockCipherModes.GCM)
         {
-            _engine = engine;
-            _mode = mode;
+            throw new UnsupportedEncryptionException(_engine, _mode);
         }
 
-        public ICryptographyProvider Build()
-        {
-            if (_engine != BlockCipherEngines.AES || _mode != BlockCipherModes.GCM)
-                throw new UnsupportedEncryptionException(_engine, _mode);
-
-            return new AeadCryptographyProvider();
-        }
+        return new AeadCryptographyProvider();
     }
 }

@@ -1,6 +1,6 @@
 ---
 date: 2026-10-07
-status: proposed
+status: accepted
 ---
 
 # Publish each release to GitHub as a snapshot, not a mirror
@@ -30,11 +30,34 @@ place - the tagged build's workspace - and because a draft can then only exist f
 build passed the tests, the self-test, the signing and the signature check. "Only release a green
 tag" becomes a property of the pipeline rather than a rule to remember.
 
-Pre-releases - a tag with a hyphen, or the flag set by hand - are drafted but never published to
-GitHub. `publish-github.yml` can also be run by hand for a tag, with `dry_run` on by default,
+There are **no pre-releases**. Only a `v<major>.<minor>.<patch>` tag drafts a release; a tag such
+as `v2.2.0-rc.1` fails the draft step by name, and `git describe` ignores it, so it cannot move the
+version either ([ADR-0030](0030-derive-the-version-from-git-tags.md)). Supporting them was
+considered and dropped: nothing here has needed one, and the version scheme cannot express one.
+A release flagged as a pre-release by hand in Forgejo is still not published.
+
+`publish-github.yml` can also be run by hand for a tag, with `dry_run` on by default,
 to see exactly which files and which release would go out, or to redo a publish that failed half
 way. A dry run reads the draft, so a release can be inspected before anything is published - the
-one run that cannot do that is the real one, which refuses a draft.
+one run that cannot do that is the real one, which refuses a draft. It cannot fetch the
+draft's assets, which the instance serves only once the release is published, so their
+checksums and signature check are the real run's.
+
+## A tag is published by the tooling it was tagged with
+
+The job checks out twice. `source` is the tag: what is published, and the `include`, `denylist`
+and `overlay/` that decide it, because what goes out is part of the release. `tooling` is the
+commit the workflow file came from, and supplies the two scripts. On a release event both are the
+tagged commit - a release event runs the workflow file as it is at the tag, as GitHub documents
+it and as assumed here for Forgejo; `v2.1.0` could not tell the two apart - so a tag is
+published exactly as it was tagged. On a manual run `tooling` is the branch the run was started from, which is what makes
+a manual run the way to redo a release with fixed tooling.
+
+This was learned the expensive way. With a single checkout of the tag, three fixes to the
+scripts merged after `v2.1.0` was tagged never ran: each manual run read the new workflow from
+`master` and then executed the scripts as they were at the tag. The consequence to remember: a
+fix to the publishing scripts or the workflow reaches a tag that already exists only through a
+manual run; publishing its release runs what was tagged.
 
 ## Why snapshots
 
@@ -100,12 +123,18 @@ secret. A deploy key would have been the narrower credential for the push alone,
 and the upload need the API. Fine-grained tokens expire; the first step of the publish checks the
 token and fails by name when GitHub rejects it.
 
-## What this does not prove
+## What v2.1.0 proved
 
-Measured here: the tree half, end to end into a local bare repository - 1193 files, every one
-byte-identical to its blob in the source, nothing from outside the allowlist.
-Both scripts' failure paths are tested. Unmeasured, because none of it is reachable from the
-development environment: that publishing a Forgejo draft fires `release: published`; that the job
-token may create a release, attach to it and download the attachment; the push to GitHub; and the
-upload. The first real release proves them. If the draft does not fire the workflow, running it
-by hand for the tag is the fallback.
+The first release, 2026-10-07, went through end to end: the tagged build drafted the release
+and attached the MSI with the job token; publishing the draft fired `release: published`; the
+snapshot and the tag reached GitHub in one push, from 1193 files byte-identical to their source
+blobs; and the GitHub release was created with the notes, the SHA256 and the MSI.
+
+Getting there took four corrections, all now in
+[platform-findings](../platform-findings.md#publishing-to-github): the runner's Node options need
+Node 22, its proxy needs `NODE_USE_ENV_PROXY`, the scripts had to come from the workflow's
+commit rather than the tag, and a draft's assets are not served to the job token at all - only a
+published release's are, which is why a dry run against a draft cannot check its assets.
+
+Not yet exercised: a second release on top of the first, which is the case the snapshot history
+exists for; an expired token; and a publish that fails half way and is redone by hand.

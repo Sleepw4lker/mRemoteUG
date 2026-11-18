@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+
 using SkiaSharp;
 
 namespace IconGen;
@@ -28,18 +29,24 @@ public static partial class Renderer
     /// </remarks>
     public static string? WhyNotAMask(string markup)
     {
-        foreach (var tag in AnyTag().Matches(markup).Select(m => m.Groups["tag"].Value).Distinct())
+        foreach (string? tag in AnyTag().Matches(markup).Select(m => m.Groups["tag"].Value).Distinct())
+        {
             if (tag is not "path")
+            {
                 return $"carries a <{tag}> element, so it is not a single flat shape";
+            }
+        }
 
         foreach (Match match in RiskyAttribute().Matches(markup))
         {
-            var attr = match.Groups["attr"].Value;
-            var value = match.Groups["value"].Value.Trim();
+            string attr = match.Groups["attr"].Value;
+            string value = match.Groups["value"].Value.Trim();
 
             // currentColor and none are the two that mean "no opinion", which is what a mask wants.
             if (attr is "fill" && value is "currentColor" or "none" or "")
+            {
                 continue;
+            }
 
             return $"""carries {attr}="{value}", so its own paint would be discarded""";
         }
@@ -59,7 +66,7 @@ public static partial class Renderer
             canvas.Clear(SKColors.Transparent);
 
             // A badge occupies the bottom-right BadgeScale of the frame; everything else fills it.
-            var scale = pixels / (float)viewBox;
+            float scale = pixels / (float)viewBox;
             if (badge)
             {
                 canvas.Translate(pixels * (1 - BadgeScale), pixels * (1 - BadgeScale));
@@ -75,12 +82,14 @@ public static partial class Renderer
                 Style = SKPaintStyle.Fill
             };
 
-            var drew = false;
+            bool drew = false;
             foreach (Match match in PathElement().Matches(markup))
             {
                 using var path = SKPath.ParseSvgPathData(match.Groups[1].Value);
                 if (path is null)
+                {
                     throw new InvalidDataException("SkiaSharp could not parse a path.");
+                }
 
                 // Fluent's geometry relies on even-odd to punch holes - a folder's fold, the
                 // inside of an O. Skia defaults to winding, which fills them in solid.
@@ -90,11 +99,13 @@ public static partial class Renderer
             }
 
             if (!drew)
+            {
                 throw new InvalidDataException("No <path> elements were found.");
+            }
         }
 
         using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        using SKData data = image.Encode(SKEncodedImageFormat.Png, 100);
         return data.ToArray();
     }
 }

@@ -44,19 +44,47 @@
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 
     <!--
-      Nullable reference types are being enabled a directory at a time. `annotations` honours every
-      `?` and nullability attribute in the source while leaving the warnings off, so a file opts in
-      to being checked by putting `#nullable enable` at its top. This setting adds zero warnings to
-      the build as it stands, which is what lets the annotations go in ahead of the checking.
+      Nullable reference types are on for every file, the organisation's setting. They were
+      switched on a directory at a time under `annotations` with a `#nullable enable` per file
+      (ADR-0022, #68); every hand-written file had opted in before this became the default.
+      CustomActions sets its own `disable`: it is C# 7.3 and outside this.
 
-      `WarningsAsErrors=nullable` is the ratchet: once a file is enabled it cannot regress, and an
-      annotation added later that breaks an already-enabled file fails the build in the commit that
-      caused it rather than at the end of the migration. The build is the only thing that enforces
-      it, and it is deliberately in the build rather than in CI: the Forgejo workflow repeats the
-      same `dotnet build` on every push, but the rule has to hold locally too. See ADR-0022.
+      `WarningsAsErrors=nullable` was the ratchet and stays: a nullable warning fails the build
+      even when someone passes TreatWarningsAsErrors=false. It is deliberately in the build rather
+      than in CI: the Forgejo workflow repeats the same `dotnet build` on every push, but the rule
+      has to hold locally too. See ADR-0022.
     -->
-    <Nullable>annotations</Nullable>
+    <Nullable>enable</Nullable>
     <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
+  </PropertyGroup>
+
+  <!--
+    The organisation's analysis settings, as the template's Directory.Build.props sets them. See
+    docs/conventions/csharp.md.
+
+    C# projects only. The installer's .wixproj imports this file too, and none of these mean
+    anything to WiX: it has its own TreatWarningsAsErrors in mRemoteUG.Installer.wixproj, which
+    reaches the wix and heat tasks.
+
+    Every analyzer ID that still has findings is lowered in .editorconfig as a temporary
+    exclusion naming its fix issue, so warnings as errors holds for everything else from now on.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Needed for IDE0005 (unnecessary usings) to run in the build. The documentation file it
+         writes beside mRemoteUG.dll is kept out of the MSI by the harvest filter
+         (src/mRemoteUG.Installer/Filters/Harvest_Filter.xslt), and build.yml's "Check what the
+         package installs" fails a package that carries it. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Exception: CS1591, see "Where this repository departs from these conventions" in
+         docs/conventions/csharp.md. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
 
@@ -88,6 +116,15 @@
     <GenerateAssemblyTrademarkAttribute>false</GenerateAssemblyTrademarkAttribute>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateNeutralResourcesLanguageAttribute>false</GenerateNeutralResourcesLanguageAttribute>
+
+    <!-- Two more the SDK emits from the TFM, on switches of their own outside the list above.
+         SupportedOSPlatform allows several, so nothing failed when it came back with generation:
+         the SDK's "Windows7.0" sat beside the hand-written Windows 11 floor, and CA1416 went by
+         7.0 - measured 2026-10-07, a call needing Windows 10 19041 warned "reachable on:
+         'windows' 7.0 and later". TargetPlatform goes with it, as it did before generation
+         came back: it says only what the TFM already says. PlatformAttributeTests pins it. -->
+    <GenerateSupportedOSPlatformAttribute>false</GenerateSupportedOSPlatformAttribute>
+    <GenerateTargetPlatformAttribute>false</GenerateTargetPlatformAttribute>
   </PropertyGroup>
 
   <!--
@@ -137,8 +174,16 @@
       describe answer is always stdout; discarding stderr here is what keeps that true regardless
       of what the runner's environment happens to have set.
     -->
+    <!--
+      The exclude pattern "*-*", because the match pattern is a glob and its last * takes
+      anything: v2.2.0-rc.1 matches it. (No double hyphen may appear in an XML comment, which
+      is why the options are not spelled out here.) _TagPattern below cannot parse such a tag,
+      so it fell through to the seed - silently, for the tagged build and for every build after
+      it, since describe answers with the nearest tag. Measured with a scratch repository, 2026-10-07. This project has no
+      pre-releases (ADR-0035); excluding them here means a stray one cannot move the version.
+    -->
     <Exec Condition="'$(VersionDescribeOverride)' == ''"
-          Command="git describe --tags --long --always --dirty=.dirty --match &quot;v[0-9]*.[0-9]*.[0-9]*&quot; 2&gt;NUL"
+          Command="git describe --tags --long --always --dirty=.dirty --match &quot;v[0-9]*.[0-9]*.[0-9]*&quot; --exclude &quot;*-*&quot; 2&gt;NUL"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="low"

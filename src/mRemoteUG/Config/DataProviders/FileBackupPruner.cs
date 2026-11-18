@@ -1,32 +1,16 @@
-﻿using System.IO;
-using System.Linq;
+namespace mRemoteUG.Config.DataProviders;
 
-namespace mRemoteUG.Config.DataProviders
+public class FileBackupPruner
 {
-    public class FileBackupPruner
+    /// <summary>
+    /// Deletes all but the <paramref name="maxBackupsToKeep"/> newest backups of
+    /// <paramref name="filePath"/>, aged as <see cref="FileBackupLookup.NewestFirst"/> ages them.
+    /// </summary>
+    public static void PruneBackupFiles(string filePath, int maxBackupsToKeep)
     {
-        public void PruneBackupFiles(string filePath, int maxBackupsToKeep)
+        foreach (FileBackup backup in FileBackupLookup.NewestFirst(filePath).Skip(maxBackupsToKeep))
         {
-            var fileName = Path.GetFileName(filePath);
-            var directoryName = Path.GetDirectoryName(filePath);
-
-            if (string.IsNullOrEmpty(fileName) || string.IsNullOrEmpty(directoryName))
-                return;
-
-            var searchPattern = string.Format(mRemoteUG.Settings.Default.BackupFileNameFormat, fileName, "*");
-            var files = Directory.GetFiles(directoryName, searchPattern);
-
-            if (files.Length <= maxBackupsToKeep)
-                return;
-
-            var filesToDelete = files
-                .OrderByDescending(s => s)
-                .Skip(maxBackupsToKeep);
-
-            foreach (var file in filesToDelete)
-            {
-                File.Delete(file);
-            }
+            File.Delete(backup.Path);
         }
     }
 }

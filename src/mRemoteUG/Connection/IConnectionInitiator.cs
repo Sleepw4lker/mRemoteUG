@@ -1,18 +1,16 @@
 using mRemoteUG.Container;
-using System.Collections.Generic;
 
-namespace mRemoteUG.Connection
+namespace mRemoteUG.Connection;
+
+public interface IConnectionInitiator
 {
-    public interface IConnectionInitiator
-    {
-        IEnumerable<string> ActiveConnections { get; }
+    IEnumerable<string> ActiveConnections { get; }
 
-        void OpenConnection(ConnectionInfo connectionInfo);
+    void OpenConnection(ConnectionInfo connectionInfo);
 
-        void OpenConnection(ContainerInfo containerInfo, ConnectionInfo.Force force = ConnectionInfo.Force.None);
+    void OpenConnection(ContainerInfo containerInfo, ConnectionInfo.Force force = ConnectionInfo.Force.None);
 
-        void OpenConnection(ConnectionInfo connectionInfo, ConnectionInfo.Force force);
+    void OpenConnection(ConnectionInfo connectionInfo, ConnectionInfo.Force force);
 
-        bool SwitchToOpenConnection(ConnectionInfo connectionInfo);
-    }
+    bool SwitchToOpenConnection(ConnectionInfo connectionInfo);
 }

@@ -1,18 +1,17 @@
 using mRemoteUG.UI.Window;
 
-namespace mRemoteUG.App
+namespace mRemoteUG.App;
+
+public static class AppWindows
 {
-    public static class AppWindows
+    private static ConnectionTreeWindow? s_treeForm;
+
+    internal static ConnectionTreeWindow TreeForm
     {
-        private static ConnectionTreeWindow _treeForm;
-
-        internal static ConnectionTreeWindow TreeForm
-        {
-            get => _treeForm ?? (_treeForm = new ConnectionTreeWindow());
-            set => _treeForm = value;
-        }
-
-        internal static ConfigWindow ConfigForm { get; set; } = new ConfigWindow();
-        internal static ErrorAndInfoWindow ErrorsForm { get; set; } = new ErrorAndInfoWindow();
+        get => s_treeForm ?? (s_treeForm = new ConnectionTreeWindow());
+        set => s_treeForm = value;
     }
+
+    internal static ConfigWindow ConfigForm { get; set; } = new ConfigWindow();
+    internal static ErrorAndInfoWindow ErrorsForm { get; set; } = new ErrorAndInfoWindow();
 }

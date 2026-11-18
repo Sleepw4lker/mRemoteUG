@@ -1,5 +1,6 @@
 ---
 date: 2026-09-22
+status: accepted
 ---
 
 # Replace the connection tree's ObjectListView with a TreeView

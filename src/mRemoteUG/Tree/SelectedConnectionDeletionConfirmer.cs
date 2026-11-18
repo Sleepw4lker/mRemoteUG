@@ -1,55 +1,84 @@
-﻿using System;
-using System.Windows.Forms;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+
 using mRemoteUG.Connection;
 using mRemoteUG.Container;
 
 
-namespace mRemoteUG.Tree
+namespace mRemoteUG.Tree;
+
+public class SelectedConnectionDeletionConfirmer : IConfirm<ConnectionInfo>
 {
-	public class SelectedConnectionDeletionConfirmer : IConfirm<ConnectionInfo>
+    private readonly Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> _confirmationFunc;
+
+    public SelectedConnectionDeletionConfirmer(
+        Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> confirmationFunc)
     {
-        private readonly Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> _confirmationFunc;
+        _confirmationFunc = confirmationFunc;
+    }
 
-        public SelectedConnectionDeletionConfirmer(Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> confirmationFunc)
+    public bool Confirm(ConnectionInfo? deletionTarget)
+    {
+        if (deletionTarget == null)
         {
-            _confirmationFunc = confirmationFunc;
+            return false;
         }
 
-        public bool Confirm(ConnectionInfo deletionTarget)
+        var deletionTargetAsContainer = deletionTarget as ContainerInfo;
+        if (deletionTargetAsContainer != null)
         {
-            if (deletionTarget == null)
-                return false;
-
-            var deletionTargetAsContainer = deletionTarget as ContainerInfo;
-            if (deletionTargetAsContainer != null)
-                return deletionTargetAsContainer.HasChildren()
-                    ? UserConfirmsNonEmptyFolderDeletion(deletionTargetAsContainer)
-                    : UserConfirmsEmptyFolderDeletion(deletionTargetAsContainer);
-            return UserConfirmsConnectionDeletion(deletionTarget);
+            return deletionTargetAsContainer.HasChildren()
+                ? UserConfirmsNonEmptyFolderDeletion(deletionTargetAsContainer)
+                : UserConfirmsEmptyFolderDeletion(deletionTargetAsContainer);
         }
 
-        private bool UserConfirmsEmptyFolderDeletion(AbstractConnectionRecord deletionTarget)
-        {
-            var messagePrompt = string.Format(Language.strConfirmDeleteNodeFolder, deletionTarget.Name);
-            return PromptUser(messagePrompt);
-        }
+        return UserConfirmsConnectionDeletion(deletionTarget);
+    }
 
-        private bool UserConfirmsNonEmptyFolderDeletion(AbstractConnectionRecord deletionTarget)
-        {
-            var messagePrompt = string.Format(Language.strConfirmDeleteNodeFolderNotEmpty, deletionTarget.Name);
-            return PromptUser(messagePrompt);
-        }
+    [SuppressMessage("Performance", "CA1863",
+                     Justification = "The format is a localized resource read at run time; "
+                                     + "a cached CompositeFormat would freeze the UI language.")]
+    private bool UserConfirmsEmptyFolderDeletion(AbstractConnectionRecord deletionTarget)
+    {
+        string messagePrompt = string.Format(
+            CultureInfo.CurrentCulture,
+            Language.strConfirmDeleteNodeFolder,
+            deletionTarget.Name);
+        return PromptUser(messagePrompt);
+    }
 
-        private bool UserConfirmsConnectionDeletion(AbstractConnectionRecord deletionTarget)
-        {
-            var messagePrompt = string.Format(Language.strConfirmDeleteNodeConnection, deletionTarget.Name);
-            return PromptUser(messagePrompt);
-        }
+    [SuppressMessage("Performance", "CA1863",
+                     Justification = "The format is a localized resource read at run time; "
+                                     + "a cached CompositeFormat would freeze the UI language.")]
+    private bool UserConfirmsNonEmptyFolderDeletion(AbstractConnectionRecord deletionTarget)
+    {
+        string messagePrompt = string.Format(
+            CultureInfo.CurrentCulture,
+            Language.strConfirmDeleteNodeFolderNotEmpty,
+            deletionTarget.Name);
+        return PromptUser(messagePrompt);
+    }
 
-        private bool PromptUser(string promptMessage)
-        {
-            var msgBoxResponse = _confirmationFunc.Invoke(promptMessage, Application.ProductName, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            return msgBoxResponse == DialogResult.Yes;
-        }
+    [SuppressMessage("Performance", "CA1863",
+                     Justification = "The format is a localized resource read at run time; "
+                                     + "a cached CompositeFormat would freeze the UI language.")]
+    private bool UserConfirmsConnectionDeletion(AbstractConnectionRecord deletionTarget)
+    {
+        string messagePrompt = string.Format(
+            CultureInfo.CurrentCulture,
+            Language.strConfirmDeleteNodeConnection,
+            deletionTarget.Name);
+        return PromptUser(messagePrompt);
+    }
+
+    private bool PromptUser(string promptMessage)
+    {
+        DialogResult msgBoxResponse = _confirmationFunc.Invoke(
+            promptMessage,
+            // Not null: ProductName reads [AssemblyProduct] first, and Properties/AssemblyInfo.cs sets it.
+            Application.ProductName!,
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+        return msgBoxResponse == DialogResult.Yes;
     }
 }
